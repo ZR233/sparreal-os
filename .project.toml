@@ -12,3 +12,9 @@ machine = "virt"
 cpu = "cortex-a53"
 graphic = false
 args = ""
+
+[uboot]
+serial = "COM3"
+baud_rate = 115200
+net = "以太网"
+dtb_file = "C:/Users/zrufo/Documents/rspi/bcm2711-rpi-4-b.dtb"
