@@ -1,0 +1,14 @@
+{
+    "rust-analyzer.cargo.allTargets": false,
+    "rust-analyzer.checkOnSave": false,
+    "rust-analyzer.check.command": "clippy",
+    "lldb.displayFormat": "auto",
+    "lldb.dereferencePointers": true,
+    "lldb.consoleMode": "commands",
+    "rust-targets.targets": [
+        "aarch64-unknown-none"
+    ],
+    "rust-analyzer.check.targets": [
+        "aarch64-unknown-none"
+    ],
+}

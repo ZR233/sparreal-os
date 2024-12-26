@@ -1,0 +1,14 @@
+[compile]
+target = "aarch64-unknown-none"
+package = "helloworld"
+log_level = "Debug"
+rust_flags = "-C link-arg=-TLink.x -C link-arg=-no-pie -C link-arg=-znostart-stop-gc"
+features = []
+
+[compile.env]
+
+[qemu]
+machine = "virt"
+cpu = "cortex-a53"
+graphic = false
+args = ""

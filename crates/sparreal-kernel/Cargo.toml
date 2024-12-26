@@ -1,0 +1,27 @@
+[package]
+name = "sparreal-kernel"
+version = "0.2.0"
+authors = ["周睿 <zrufo747@outlook.com>"]
+edition = "2024"
+repository = "https://github.com/ZR233/sparreal-os"
+license = "MPL-2.0"
+description = "Sparreal OS kernel"
+keywords = ["os"]
+categories = ["embedded", "no-std"]
+
+[features]
+mmu = []
+
+
+[dependencies]
+log = "0.4"
+buddy_system_allocator = "0.11"
+sparreal-macros = { version = "0.1", path = "../sparreal-macros" }
+memory_addr = "0.3"
+page-table-generic = { version = "0.3" }
+fdt-parser = "0.4"
+lock_api = "0.4"
+pasts = { version = "0.14", default-features = false }
+ansi_rgb = "0.2"
+rgb = "0.8.47"
+spin = "0.9"

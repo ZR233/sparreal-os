@@ -1,6 +1,12 @@
-[package]
-name = "sparreal3"
-version = "0.1.0"
-edition = "2021"
+[workspace]
+resolver = "2"
+members = ["app/*", "crates/*"]
 
-[dependencies]
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+
+[workspace.dependencies]
+sparreal-rt = { path = "crates/sparreal-rt" }
+sparreal-macros = { path = "crates/sparreal-macros" }
+page-table-arm = { path = "crates/page-table-arm" }

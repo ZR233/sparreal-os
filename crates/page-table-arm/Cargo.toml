@@ -1,0 +1,20 @@
+[package]
+name = "page-table-arm"
+description = "A library of arm page table"
+version = "0.1.0"
+edition = "2024"
+authors = ["周睿 <zrufo747@outlook.com>"]
+repository = "https://github.com/qclic/sparreal-os/tree/main/crates/page-table-arm"
+documentation = "https://docs.rs/page-table-arm"
+license = "MIT"
+keywords = ["page", "mmu", "arm"]
+categories = ["no-std"]
+
+[dependencies]
+bitflags = "2.6"
+log = "0.4"
+aarch64-cpu = "10.0.0"
+
+
+[dev-dependencies]
+env_logger = "0.11.5"
