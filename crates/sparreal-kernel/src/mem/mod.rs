@@ -3,43 +3,49 @@ use core::{
     ptr::{NonNull, null_mut},
 };
 
-use buddy_system_allocator::Heap;
 use fdt_parser::Fdt;
-use spin::RwLock;
+use spin::Mutex;
+
+mod mmu;
+
+struct Heap(pub(crate) buddy_system_allocator::Heap<32>);
+
+impl Heap {
+    const fn empty() -> Self {
+        Self(buddy_system_allocator::Heap::empty())
+    }
+}
 
 #[global_allocator]
 static ALLOCATOR: KAllocator = KAllocator {
-    inner: RwLock::new(Heap::<32>::empty()),
+    inner: Mutex::new(Heap::empty()),
 };
 
 pub struct KAllocator {
-    inner: RwLock<Heap<32>>,
+    inner: Mutex<Heap>,
 }
-
-unsafe impl Send for KAllocator {}
-unsafe impl Sync for KAllocator {}
 
 impl KAllocator {
     pub fn reset(&self, memory: &mut [u8]) {
-        let mut g = self.inner.write();
+        let mut g = self.inner.lock();
 
-        let mut h = Heap::<32>::new();
+        let mut h = Heap::empty();
 
-        unsafe { h.init(memory.as_mut_ptr() as usize, memory.len()) };
+        unsafe { h.0.init(memory.as_mut_ptr() as usize, memory.len()) };
 
         *g = h;
     }
 
     pub fn add_to_heap(&self, memory: &mut [u8]) {
-        let mut g = self.inner.write();
+        let mut g = self.inner.lock();
 
-        unsafe { g.add_to_heap(memory.as_mut_ptr() as usize, memory.len()) };
+        unsafe { g.0.add_to_heap(memory.as_mut_ptr() as usize, memory.len()) };
     }
 }
 
 unsafe impl GlobalAlloc for KAllocator {
     unsafe fn alloc(&self, layout: core::alloc::Layout) -> *mut u8 {
-        if let Ok(p) = self.inner.write().alloc(layout) {
+        if let Ok(p) = self.inner.lock().0.alloc(layout) {
             p.as_ptr()
         } else {
             null_mut()
@@ -48,7 +54,8 @@ unsafe impl GlobalAlloc for KAllocator {
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: core::alloc::Layout) {
         self.inner
-            .write()
+            .lock()
+            .0
             .dealloc(unsafe { NonNull::new_unchecked(ptr) }, layout);
     }
 }
