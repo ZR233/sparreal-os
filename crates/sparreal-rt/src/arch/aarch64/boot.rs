@@ -31,6 +31,8 @@ pub fn write_bytes(s: &[u8]) {
 extern "C" fn __rust_boot(va_offset: usize, fdt_addr: usize) {
     unsafe {
         clear_bss();
+        crate::mem::set_va_offset(va_offset);
+        
         asm!("tlbi vmalle1");
         dsb(NSH);
 
@@ -75,7 +77,6 @@ extern "C" fn __rust_boot(va_offset: usize, fdt_addr: usize) {
         isb(SY);
 
         crate::debug::mmu_add_offset(va_offset);
-        crate::mem::set_va_offset(va_offset);
         // Enable the MMU and turn on I-cache and D-cache
         SCTLR_EL1.modify(SCTLR_EL1::M::Enable + SCTLR_EL1::C::Cacheable + SCTLR_EL1::I::Cacheable);
         isb(SY);

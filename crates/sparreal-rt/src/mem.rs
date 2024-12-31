@@ -6,6 +6,7 @@ use core::{
 use buddy_system_allocator::Heap;
 use fdt_parser::Fdt;
 
+#[unsafe(no_mangle)]
 static mut VA_OFFSET: usize = 0;
 
 pub(crate) fn set_va_offset(va_offset: usize) {

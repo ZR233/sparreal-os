@@ -28,7 +28,6 @@ macro_rules! format_record {
             "{}",
             format_args!(
                 "{} {:.3?} [{path}:{line}] {args}\r\n",
-                // "{} [{path}:{line}] {args}\n",
                 level_icon($record.level()),
                 $d,
                 path = $record.target(),
