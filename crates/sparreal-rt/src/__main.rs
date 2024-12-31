@@ -7,12 +7,10 @@ use sparreal_kernel::{
 
 use crate::mem::{self, get_fdt};
 
-use self::mem::{get_fdt_data, kernel_data, kernel_stack, va_offset};
+use self::mem::{boot_heap, get_fdt_data, kernel_data, kernel_stack, va_offset};
 
 pub extern "C" fn __rust_main() -> ! {
     crate::debug::put(b'D');
-    crate::debug::put(b'\n');
-    crate::debug::put(b'e');
     crate::debug::put(b'\n');
 
     let info = BootInfo {
@@ -22,10 +20,13 @@ pub extern "C" fn __rust_main() -> ! {
         },
         stack: kernel_stack(),
         kernel: kernel_data(),
+        heap: boot_heap(),
     };
 
     unsafe {
         boot::preper(info);
+
+        println!("Hello, world!");
 
         start()
     }

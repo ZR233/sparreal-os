@@ -1,0 +1,20 @@
+use core::fmt;
+
+use alloc::boxed::Box;
+use spin::Mutex;
+
+use crate::boot::debug;
+
+static STDOUT: Mutex<Option<Box<dyn fmt::Write + Send>>> = Mutex::new(None);
+
+pub fn stdout_use_debug() {
+    *STDOUT.lock() = Some(Box::new(debug::DebugWriter {}));
+}
+
+pub fn print(args: fmt::Arguments) {
+    let mut g = STDOUT.lock();
+
+    if let Some(ref mut writer) = *g {
+        let _ = writer.write_fmt(args);
+    }
+}

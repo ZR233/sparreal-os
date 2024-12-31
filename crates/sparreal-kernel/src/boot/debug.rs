@@ -2,7 +2,7 @@ use core::fmt::Write;
 
 use crate::platform::PlatformImpl;
 
-struct DebugWriter;
+pub struct DebugWriter;
 
 impl Write for DebugWriter {
     fn write_str(&mut self, s: &str) -> core::fmt::Result {

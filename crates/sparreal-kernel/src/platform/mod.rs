@@ -7,6 +7,9 @@ pub mod fdt;
 pub trait Platform {
     fn wait_for_interrupt();
     fn debug_put(b: u8);
+
+    fn current_ticks() -> u64;
+    fn tick_hz() -> u64;
 }
 
 #[cfg(feature = "mmu")]

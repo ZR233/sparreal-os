@@ -86,6 +86,26 @@ pub fn kernel_stack() -> &'static [u8] {
     }
 }
 
+pub fn boot_heap() -> &'static [u8] {
+    let main_memory = get_fdt()
+        .unwrap()
+        .memory()
+        .next()
+        .unwrap()
+        .regions()
+        .next()
+        .unwrap();
+
+    unsafe {
+        let start = kernel_stack().as_ptr_range().end as usize;
+        let end = main_memory.address as usize + main_memory.size + va_offset();
+
+        let len = end - start;
+
+        core::slice::from_raw_parts(start as _, len)
+    }
+}
+
 #[allow(unused)]
 pub struct PageAllocator {
     heap: Heap<32>,

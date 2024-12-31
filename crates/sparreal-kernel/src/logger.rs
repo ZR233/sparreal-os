@@ -2,6 +2,8 @@ use ansi_rgb::{Foreground, red, yellow};
 use log::{Level, Log};
 use rgb::{RGB8, Rgb};
 
+
+
 fn level_to_rgb(level: Level) -> RGB8 {
     match level {
         Level::Error => red(),
@@ -50,7 +52,7 @@ impl Log for KLogger {
     fn log(&self, record: &log::Record) {
         if self.enabled(record.metadata()) {
             let duration = crate::time::since_boot();
-            stdout::print(format_record!(record, duration));
+            // crate::__export::print(format_record!(record, duration));
         }
     }
     fn flush(&self) {}

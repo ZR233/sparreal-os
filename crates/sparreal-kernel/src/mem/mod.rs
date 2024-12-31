@@ -9,7 +9,11 @@ use fdt_parser::Fdt;
 use memory_addr::MemoryAddr;
 use spin::Mutex;
 
-use crate::{boot::BootInfo, platform};
+use crate::{
+    boot::BootInfo,
+    platform::{self, PlatformImpl},
+    println,
+};
 
 #[cfg(feature = "mmu")]
 pub mod mmu;
@@ -71,46 +75,13 @@ fn va_offset() -> usize {
 pub(crate) fn init(info: &BootInfo) {
     set_va_offset(info.va_offset);
 
-    match info.device_info_kind {
-        crate::boot::PlatformInfoKind::DeviceTree { addr } => {
-            platform::fdt::set_addr(addr);
+    let heap = info.heap.as_ptr_range();
 
-            let fdt = platform::fdt::get_fdt().unwrap();
+    let start = (heap.start as usize).align_up_4k();
+    let end = (heap.end as usize).align_down_4k();
 
-            for memory in fdt.memory() {
-                for region in memory.regions() {
-                    add_to_heap(info, region.address as _, region.size);
-                }
-            }
-        }
-    }
-}
-
-fn add_to_heap(info: &BootInfo, mut start: usize, size: usize) {
-    let mut start = start + va_offset();
-
-    let memory_range = start..start + size;
-    let half = memory_range.start + size / 2;
-    let kernel_end = info.kernel.as_ptr_range().end as usize;
-    let stack_bottom = info.stack.as_ptr_range().start as usize;
-    let stack_top = info.stack.as_ptr_range().end as usize;
-
-    let mut end = start + size;
-
-    if memory_range.contains(&kernel_end) {
-        start = kernel_end;
-    }
-
-    if memory_range.contains(&stack_bottom) {
-        if stack_bottom > half {
-            end = stack_bottom.min(end);
-        } else {
-            start = (stack_top + 0x16).max(start);
-        }
-    }
-
-    start = start.align_up_4k();
-    end = end.align_down_4k();
-
+    println!("heap add memory {:#x} - {:#x}", start, end);
     ALLOCATOR.add_to_heap(unsafe { &mut *slice_from_raw_parts_mut(start as *mut u8, end - start) });
+
+    println!("heap initialized");
 }
