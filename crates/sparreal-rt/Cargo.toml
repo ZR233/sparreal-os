@@ -1,0 +1,34 @@
+[package]
+name = "sparreal-rt"
+version = "0.3.0"
+authors = ["周睿 <zrufo747@outlook.com>"]
+edition = "2024"
+repository = "https://github.com/ZR233/sparreal-os"
+license = "MPL-2.0"
+description = "Sparreal OS Runtime"
+keywords = ["os"]
+categories = ["embedded", "no-std"]
+
+[features]
+default = []
+early-print = []
+
+[dependencies]
+log = "0.4"
+page-table-generic = { version = "0.3" }
+futures = { version = "0.3", default-features = false, features = ["alloc"] }
+sparreal-macros = { version = "0.1", path = "../sparreal-macros" }
+sparreal-kernel = { version = "0.2", path = "../sparreal-kernel", features = ["mmu"]}
+bitflags = "2.6"
+fdt-parser = "0.4"
+dma-api = "0.2"
+buddy_system_allocator = "0.11"
+
+
+[target.'cfg(target_arch = "aarch64")'.dependencies]
+aarch64-cpu = "10.0"
+tock-registers = "0.9"
+arm-pl011-rs = "0.2"
+arm-gic-driver = "0.3"
+arm_pl031 = "0.2.1"
+page-table-arm = { version = "0.1", path = "../page-table-arm" }
