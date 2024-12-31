@@ -134,102 +134,18 @@ fn is_simple_type(ty: &Type, name: &str) -> bool {
     false
 }
 
-fn func_ident(trait_ident: &Ident, func_ident: &Ident) -> Ident {
-    let trait_ident = trait_ident.to_string().to_ascii_lowercase();
-    format_ident!("__sparreal_api_{}_{}", trait_ident, func_ident)
+const NAMESPACE: &str = "sparreal_os";
+
+#[proc_macro_attribute]
+pub fn api_trait(_args: TokenStream, item: TokenStream) -> TokenStream {
+    abi_singleton::api_trait(item, NAMESPACE)
 }
 
 #[proc_macro_attribute]
-pub fn api_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
-    let f = parse_macro_input!(input as ItemTrait);
-
-    let mut funcs = Vec::new();
-
-    for item in &f.items {
-        if let TraitItem::Fn(func) = item {
-            let ident = func.sig.ident.clone();
-            let inputs = func.sig.inputs.clone();
-            let output = func.sig.output.clone();
-
-            let api_name = func_ident(&f.ident, &ident);
-
-            let mut args = Vec::new();
-
-            for arg in &inputs {
-                if let FnArg::Typed(t) = arg {
-                    if let Pat::Ident(i) = t.pat.as_ref() {
-                        let ident = &i.ident;
-                        args.push(quote! { #ident , });
-                    }
-                }
-            }
-            funcs.push(quote! {
-
-                pub unsafe fn #ident (#inputs) #output{
-                    extern "Rust" {
-                        fn #api_name ( #inputs ) #output;
-                    }
-
-                    #api_name ( #(#args)* )
-                }
-            });
-        }
-    }
-
-    quote! {
-        #f
-        #(#funcs)*
-
-    }
-    .into()
+pub fn api_impl(_args: TokenStream, item: TokenStream) -> TokenStream {
+    abi_singleton::api_impl(item, NAMESPACE)
 }
 
-#[proc_macro_attribute]
-pub fn api_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
-    let f = parse_macro_input!(input as ItemImpl);
-
-    let mut funcs = Vec::new();
-
-    let ty = f.self_ty.clone();
-
-    for item in &f.items {
-        if let ImplItem::Fn(func) = item {
-            let ident = func.sig.ident.clone();
-            let inputs = func.sig.inputs.clone();
-            let output = func.sig.output.clone();
-
-            let api_name = func_ident(
-                f.trait_.clone().unwrap().1.get_ident().unwrap(),
-                &func.sig.ident,
-            );
-
-            let mut args = Vec::new();
-
-            for arg in &inputs {
-                if let FnArg::Typed(t) = arg {
-                    if let Pat::Ident(i) = t.pat.as_ref() {
-                        let ident = &i.ident;
-                        args.push(quote! { #ident , });
-                    }
-                }
-            }
-
-            funcs.push(quote! {
-                #[no_mangle]
-                unsafe fn #api_name (#inputs) #output{
-                    #ty:: #ident ( #(#args)* )
-                }
-            });
-        }
-    }
-
-    quote! {
-        #f
-        #(#funcs)*
-
-    }
-    .into()
-}
 
 #[proc_macro]
 pub fn build_test_setup(_input: TokenStream) -> TokenStream {
