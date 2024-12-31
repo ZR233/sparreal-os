@@ -1,6 +1,8 @@
 use core::ptr::NonNull;
 
-use crate::{io, mem, platform::PlatformImpl, println};
+use log::LevelFilter;
+
+use crate::{io, logger::KLogger, mem, platform::PlatformImpl, println};
 
 pub mod debug;
 
@@ -39,5 +41,8 @@ pub unsafe fn preper(info: BootInfo) {
         );
 
         mem::init(&info);
+
+        let _ = log::set_logger(&KLogger);
+        log::set_max_level(LevelFilter::Trace);
     }
 }

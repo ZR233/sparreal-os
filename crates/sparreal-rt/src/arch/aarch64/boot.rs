@@ -74,8 +74,6 @@ extern "C" fn __rust_boot(va_offset: usize, fdt_addr: usize) {
 
         isb(SY);
 
-        crate::debug::put(b'B');
-
         crate::debug::mmu_add_offset(va_offset);
         crate::mem::set_va_offset(va_offset);
         // Enable the MMU and turn on I-cache and D-cache
@@ -84,7 +82,6 @@ extern "C" fn __rust_boot(va_offset: usize, fdt_addr: usize) {
         asm!("ic iallu");
         dsb(NSH);
         isb(SY);
-        crate::debug::put(b'C');
         asm!("
     LDR      x9, =_stack_top
     MOV      sp,  x9

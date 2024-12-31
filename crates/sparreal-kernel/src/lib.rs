@@ -17,24 +17,13 @@ use core::hint::spin_loop;
 
 pub use addr::Address;
 use boot::BootInfo;
+use log::info;
 use platform::PlatformImpl;
 
 pub fn start() -> ! {
+    info!("kernel start");
+
     loop {
         PlatformImpl::wait_for_interrupt();
     }
-}
-
-#[macro_export]
-macro_rules! print {
-    ($($arg:tt)*) => {
-        $crate::__export::print(format_args!($($arg)*));
-    };
-}
-
-#[macro_export]
-macro_rules! println {
-    ($($arg:tt)*) => {
-        $crate::print!("{}\n", format_args!($($arg)*));
-    };
 }

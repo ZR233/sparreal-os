@@ -10,9 +10,6 @@ use crate::mem::{self, get_fdt};
 use self::mem::{boot_heap, get_fdt_data, kernel_data, kernel_stack, va_offset};
 
 pub extern "C" fn __rust_main() -> ! {
-    crate::debug::put(b'D');
-    crate::debug::put(b'\n');
-
     let info = BootInfo {
         va_offset: va_offset(),
         device_info_kind: PlatformInfoKind::DeviceTree {
