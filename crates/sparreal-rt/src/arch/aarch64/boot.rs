@@ -17,7 +17,6 @@ use alloc::{format, string::ToString};
 use fdt_parser::Fdt;
 use page_table_arm::MAIRDefault;
 use page_table_generic::{AccessSetting, CacheSetting, MapConfig, PageTableRef};
-use sparreal_kernel::mem::{boot_heap_init, set_dtb_data};
 
 global_asm!(include_str!("boot.s"));
 global_asm!(include_str!("vectors.s"));
@@ -42,8 +41,6 @@ extern "C" fn __rust_boot(va_offset: usize, fdt_addr: usize) {
         } else {
             panic!("fdt is not found");
         };
-
-        init_heap(&fdt);
 
         crate::debug::init_by_fdt(&fdt);
 
@@ -80,6 +77,7 @@ extern "C" fn __rust_boot(va_offset: usize, fdt_addr: usize) {
         crate::debug::put(b'B');
 
         crate::debug::mmu_add_offset(va_offset);
+        crate::mem::set_va_offset(va_offset);
         // Enable the MMU and turn on I-cache and D-cache
         SCTLR_EL1.modify(SCTLR_EL1::M::Enable + SCTLR_EL1::C::Cacheable + SCTLR_EL1::I::Cacheable);
         isb(SY);
@@ -97,22 +95,6 @@ extern "C" fn __rust_boot(va_offset: usize, fdt_addr: usize) {
         entry = sym crate::__main::__rust_main,
         options(noreturn)
         )
-    }
-}
-
-fn init_heap(fdt: &Fdt<'_>) {
-    unsafe {
-        let node_memory = fdt.memory().next();
-
-        if node_memory.is_none() {
-            return;
-        }
-
-        let region = fdt.memory().next().unwrap().regions().next().unwrap();
-
-        let memory = &mut *slice_from_raw_parts_mut(region.address, region.size);
-
-        boot_heap_init(memory);
     }
 }
 

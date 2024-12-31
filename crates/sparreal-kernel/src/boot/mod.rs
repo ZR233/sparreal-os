@@ -1,5 +1,7 @@
 use core::ptr::NonNull;
 
+use crate::mem;
+
 pub mod debug;
 
 pub struct BootInfo {
@@ -11,4 +13,10 @@ pub struct BootInfo {
 
 pub enum PlatformInfoKind {
     DeviceTree { addr: NonNull<u8> },
+}
+
+pub unsafe fn preper(info: BootInfo) {
+    unsafe {
+        mem::init(&info);
+    }
 }

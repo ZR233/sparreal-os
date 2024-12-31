@@ -1,52 +1,23 @@
 use core::{
     alloc::GlobalAlloc,
     cell::UnsafeCell,
-    ptr::{NonNull, null_mut},
+    ptr::{NonNull, null_mut, slice_from_raw_parts_mut},
 };
 
 use buddy_system_allocator::Heap;
 use fdt_parser::Fdt;
+use memory_addr::MemoryAddr;
 use spin::Mutex;
 
-#[cfg(feature="mmu")]
+use crate::{boot::BootInfo, platform};
+
+#[cfg(feature = "mmu")]
 pub mod mmu;
 
-// #[global_allocator]
-// static ALLOCATOR: KAllocator = KAllocator {
-//     inner: Mutex::new(Heap::empty()),
-// };
-
 #[global_allocator]
-static ALLOCATOR: BootHeap = BootHeap::empty();
-
-struct BootHeap(UnsafeCell<Heap<32>>);
-
-unsafe impl Send for BootHeap {}
-unsafe impl Sync for BootHeap {}
-
-impl BootHeap {
-    const fn empty() -> Self {
-        Self(UnsafeCell::new(Heap::empty()))
-    }
-
-    unsafe fn init(&self, start: usize, size: usize) {
-        unsafe { (&mut *self.0.get()).init(start, size) };
-    }
-}
-
-unsafe impl GlobalAlloc for BootHeap {
-    unsafe fn alloc(&self, layout: core::alloc::Layout) -> *mut u8 {
-        if let Ok(p) = (unsafe { &mut *self.0.get() }).alloc(layout) {
-            p.as_ptr()
-        } else {
-            null_mut()
-        }
-    }
-
-    unsafe fn dealloc(&self, ptr: *mut u8, layout: core::alloc::Layout) {
-        (unsafe { &mut *self.0.get() }).dealloc(unsafe { NonNull::new_unchecked(ptr) }, layout);
-    }
-}
+static ALLOCATOR: KAllocator = KAllocator {
+    inner: Mutex::new(Heap::empty()),
+};
 
 pub struct KAllocator {
     pub(crate) inner: Mutex<Heap<32>>,
@@ -65,8 +36,9 @@ impl KAllocator {
 
     pub fn add_to_heap(&self, memory: &mut [u8]) {
         let mut g = self.inner.lock();
+        let range = memory.as_mut_ptr_range();
 
-        unsafe { g.add_to_heap(memory.as_mut_ptr() as usize, memory.len()) };
+        unsafe { g.add_to_heap(range.start as usize, range.end as usize) };
     }
 }
 
@@ -85,39 +57,60 @@ unsafe impl GlobalAlloc for KAllocator {
             .dealloc(unsafe { NonNull::new_unchecked(ptr) }, layout);
     }
 }
-/// 重置堆
-///
-/// # Safty
-/// 之前分配的内存将会失效
-// pub unsafe fn heap_reset(memory: &mut [u8]) {
-//     ALLOCATOR.reset(memory);
-// }
-
-pub unsafe fn boot_heap_init(memory: &mut [u8]) {
-    let start = memory.len() / 2;
-    let memory = &mut memory[start..];
-
-    unsafe { ALLOCATOR.init(memory.as_ptr() as usize, memory.len()) };
-}
 
 static mut VA_OFFSET: usize = 0;
 
-pub(crate) unsafe fn set_va_offset(offset: usize) {
+fn set_va_offset(offset: usize) {
     unsafe { VA_OFFSET = offset };
 }
 
-static mut FDT: Option<&'static [u8]> = None;
-
-pub fn set_dtb_data(dtb: &'static [u8]) {
-    unsafe { FDT = Some(dtb) }
+fn va_offset() -> usize {
+    unsafe { VA_OFFSET }
 }
 
-pub fn get_fdt<'a>() -> Option<Fdt<'a>> {
-    let r = unsafe { FDT.map(|p| p) };
+pub(crate) fn init(info: &BootInfo) {
+    set_va_offset(info.va_offset);
 
-    if let Some(data) = r {
-        Fdt::from_bytes(data).ok()
-    } else {
-        None
+    match info.device_info_kind {
+        crate::boot::PlatformInfoKind::DeviceTree { addr } => {
+            platform::fdt::set_addr(addr);
+
+            let fdt = platform::fdt::get_fdt().unwrap();
+
+            for memory in fdt.memory() {
+                for region in memory.regions() {
+                    add_to_heap(info, region.address as _, region.size);
+                }
+            }
+        }
     }
+}
+
+fn add_to_heap(info: &BootInfo, mut start: usize, size: usize) {
+    let mut start = start + va_offset();
+
+    let memory_range = start..start + size;
+    let half = memory_range.start + size / 2;
+    let kernel_end = info.kernel.as_ptr_range().end as usize;
+    let stack_bottom = info.stack.as_ptr_range().start as usize;
+    let stack_top = info.stack.as_ptr_range().end as usize;
+
+    let mut end = start + size;
+
+    if memory_range.contains(&kernel_end) {
+        start = kernel_end;
+    }
+
+    if memory_range.contains(&stack_bottom) {
+        if stack_bottom > half {
+            end = stack_bottom.min(end);
+        } else {
+            start = (stack_top + 0x16).max(start);
+        }
+    }
+
+    start = start.align_up_4k();
+    end = end.align_down_4k();
+
+    ALLOCATOR.add_to_heap(unsafe { &mut *slice_from_raw_parts_mut(start as *mut u8, end - start) });
 }

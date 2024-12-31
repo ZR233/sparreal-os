@@ -1,8 +1,6 @@
-use ansi_rgb::{red, yellow, Foreground};
+use ansi_rgb::{Foreground, red, yellow};
 use log::{Level, Log};
-use rgb::{Rgb, RGB8};
-
-use crate::stdout;
+use rgb::{RGB8, Rgb};
 
 fn level_to_rgb(level: Level) -> RGB8 {
     match level {

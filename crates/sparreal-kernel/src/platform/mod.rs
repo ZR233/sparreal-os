@@ -1,6 +1,8 @@
 use page_table_generic::PTEGeneric;
 use sparreal_macros::api_trait;
 
+pub mod fdt;
+
 #[api_trait]
 pub trait Platform {
     fn wait_for_interrupt();

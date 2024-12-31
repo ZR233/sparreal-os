@@ -16,19 +16,19 @@ use paging::{PTEImpl, PageTableRef};
 
 const G: usize = 1 << 30;
 
-struct HeapRef;
+struct PageHeap(Heap<32>);
 
-impl page_table_generic::Access for HeapRef {
+impl page_table_generic::Access for PageHeap {
     fn va_offset(&self) -> usize {
-        unsafe { VA_OFFSET }
+        0
     }
 
     unsafe fn alloc(&mut self, layout: Layout) -> Option<NonNull<u8>> {
-        NonNull::new(unsafe { ALLOCATOR.alloc(layout) })
+        unsafe { self.0.alloc(layout).ok() }
     }
 
     unsafe fn dealloc(&mut self, ptr: NonNull<u8>, layout: core::alloc::Layout) {
-        unsafe { ALLOCATOR.dealloc(ptr.as_ptr(), layout) };
+        unsafe { self.0.dealloc(ptr, layout) };
     }
 }
 
@@ -37,7 +37,12 @@ pub fn new_boot_table(
     main_memory: Range<usize>,
     debug_reg: usize,
 ) -> Result<usize, String> {
-    let mut access = HeapRef;
+    let mut access = PageHeap(Heap::empty());
+    let mut start = main_memory.start;
+    let size = (main_memory.end - main_memory.start) / 2;
+    start += size;
+
+    unsafe { access.0.add_to_heap(start, main_memory.end) };
 
     let mut table = PageTableRef::create_empty(&mut access).map_err(|_| "no memory".to_string())?;
 

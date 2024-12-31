@@ -77,6 +77,15 @@ pub fn kernel_data() -> &'static [u8] {
     }
 }
 
+pub fn kernel_stack() -> &'static [u8] {
+    unsafe {
+        core::slice::from_raw_parts(
+            _stack_bottom as usize as *const u8,
+            _stack_top as usize - _stack_bottom as usize,
+        )
+    }
+}
+
 #[allow(unused)]
 pub struct PageAllocator {
     heap: Heap<32>,
