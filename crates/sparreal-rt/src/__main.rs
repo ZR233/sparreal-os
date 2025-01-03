@@ -5,7 +5,10 @@ use sparreal_kernel::{
     start,
 };
 
-use crate::mem::{self, get_fdt};
+use crate::{
+    debug::put,
+    mem::{self, get_fdt},
+};
 
 use self::mem::{boot_heap, get_fdt_data, kernel_data, kernel_stack, va_offset};
 

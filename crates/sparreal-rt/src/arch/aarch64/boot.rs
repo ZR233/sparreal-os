@@ -4,7 +4,10 @@ use core::{
     ptr::{NonNull, slice_from_raw_parts, slice_from_raw_parts_mut},
 };
 
-use crate::mem::{self, PageAllocator, clear_bss, get_fdt, get_fdt_data, move_dtb};
+use crate::{
+    debug::put,
+    mem::{self, PageAllocator, clear_bss, get_fdt, get_fdt_data, move_dtb},
+};
 use aarch64_cpu::{
     asm::{
         self,
@@ -32,10 +35,9 @@ extern "C" fn __rust_boot(va_offset: usize, fdt_addr: usize) {
     unsafe {
         clear_bss();
         crate::mem::set_va_offset(va_offset);
-        
+
         asm!("tlbi vmalle1");
         dsb(NSH);
-
         move_dtb(fdt_addr as _);
 
         let fdt = if let Some(fdt) = get_fdt() {
@@ -75,7 +77,6 @@ extern "C" fn __rust_boot(va_offset: usize, fdt_addr: usize) {
         TTBR0_EL1.set_baddr(table);
 
         isb(SY);
-
         crate::debug::mmu_add_offset(va_offset);
         // Enable the MMU and turn on I-cache and D-cache
         SCTLR_EL1.modify(SCTLR_EL1::M::Enable + SCTLR_EL1::C::Cacheable + SCTLR_EL1::I::Cacheable);
