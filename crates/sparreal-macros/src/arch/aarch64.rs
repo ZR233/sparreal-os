@@ -60,7 +60,7 @@ pub fn __trap_handle_irq(
 
     quote! {
         #[unsafe(no_mangle)]
-        #[naked]
+        #[unsafe(naked)]
         #vis unsafe extern "C" fn #func_name() {
             core::arch::naked_asm!(
                 #(#asm),*,
@@ -97,7 +97,7 @@ pub fn tcb_switch(is_fp: bool) -> proc_macro2::TokenStream {
 
     quote! {
         #[unsafe(no_mangle)]
-        #[naked]
+        #[unsafe(naked)]
         pub unsafe extern "C" fn __tcb_switch(_prev: *mut u8, _next: *mut u8) {
             core::arch::naked_asm!(
                #(#asm),*,
