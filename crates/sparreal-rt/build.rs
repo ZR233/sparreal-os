@@ -61,24 +61,23 @@ impl Arch {
         } else if matches!(self, Arch::Riscv64) {
             "riscv".to_string() // OUTPUT_ARCH of both riscv32/riscv64 is "riscv"
         } else {
-            format!("{:?}", self)
+            format!("{self:?}")
         };
 
         let ld_content = std::fs::read_to_string("link.ld").unwrap();
         let ld_content = ld_content.replace("%ARCH%", &output_arch);
-        let ld_content = ld_content.replace("%KERNEL_VADDR%", &format!("{:#x}", ENTRY_VADDR));
+        let ld_content = ld_content.replace("%KERNEL_VADDR%", &format!("{ENTRY_VADDR:#x}"));
 
         let ld_content =
-            ld_content.replace("%STACK_SIZE%", &format!("{:#x}", DEFAULT_KERNEL_STACK_SIZE));
+            ld_content.replace("%STACK_SIZE%", &format!("{DEFAULT_KERNEL_STACK_SIZE:#x}"));
         std::fs::write(out_dir().join("link.x"), ld_content).expect("link.x write failed");
     }
 }
 
 fn gen_const() {
     let const_content = format!(
-        r#"pub const KERNEL_STACK_SIZE: usize = {:#x};
-            "#,
-        DEFAULT_KERNEL_STACK_SIZE
+        r#"pub const KERNEL_STACK_SIZE: usize = {DEFAULT_KERNEL_STACK_SIZE:#x};
+            "#
     );
 
     std::fs::write(out_dir().join("constant.rs"), const_content).expect("const write failed");

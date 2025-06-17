@@ -5,22 +5,25 @@
     "version": "0.2.0",
     "configurations": [
         // 暂时停用，linkscript 中添加自定义 section 后，断点无法命中
-        // {
-        //     "name": "KDebug lldb",
-        //     "type": "lldb",
-        //     "request": "launch",
-        //     "program": "${workspaceFolder}/target/kernel.elf",
-        //     "initCommands": [
-        //         "platform select remote-gdb-server"
-        //     ],
-        //     "targetCreateCommands": [
-        //         "target create ${workspaceFolder}/target/kernel.elf"
-        //     ],
-        //     "processCreateCommands": [
-        //         "gdb-remote localhost:1234" // Connect to the GDB Server
-        //     ],
-        //     "preLaunchTask": "qemu debug"
-        // },
+        {
+            "name": "KDebug lldb",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/kernel.elf",
+            "initCommands": [
+                "platform select remote-gdb-server"
+            ],
+            "targetCreateCommands": [
+                "target create ${workspaceFolder}/target/kernel.elf"
+            ],
+            "processCreateCommands": [
+                "gdb-remote localhost:1234" // Connect to the GDB Server
+            ],
+            "preLaunchTask": "qemu debug",
+            "preRunCommands": [
+                "target modules load --file ${workspaceFolder}/target/kernel.elf .head.text 0x40200000",
+            ]
+        },
         {
             "type": "cppdbg",
             "name": "KDebug cppdbg",
