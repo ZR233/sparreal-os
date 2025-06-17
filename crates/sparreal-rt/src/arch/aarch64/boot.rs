@@ -11,14 +11,11 @@ use crate::mem::{self, clean_bss};
 fn rust_entry(args: &BootArgs) -> ! {
     clean_bss();
     set_trap();
-    let va = args.kimage_start_vma - args.kimage_start_lma;
     unsafe {
         asm!(
             "mov x0, {args}",
-            "mov x1, {va}",
             "bl {switch_sp}",
             args = in(reg) args,
-            va = in(reg) va,
             switch_sp = sym switch_sp,
         )
     }
@@ -45,13 +42,11 @@ fn sp_fixed_entry(args: &BootArgs) -> ! {
             3 => println!("EL3"),
             _ => unreachable!(),
         }
+        mem::setup_boot_args(args);
+        println!("FDT: {fdt:?}",);
 
-        let fdt = mem::save_fdt(fdt, args.pg_end);
-
-        println!("FDT saved at: {fdt:?}",);
-
-        let platform_info: PlatformInfoKind = if let Some(fdt) = fdt {
-            PlatformInfoKind::new_fdt((fdt.as_ptr() as usize).into())
+        let platform_info: PlatformInfoKind = if !fdt.is_null() {
+            PlatformInfoKind::new_fdt((fdt as usize - text_va).into())
         } else {
             todo!()
         };
@@ -64,11 +59,10 @@ fn sp_fixed_entry(args: &BootArgs) -> ! {
 }
 
 #[unsafe(naked)]
-unsafe extern "C" fn switch_sp(_args: usize, _va: usize) -> ! {
+unsafe extern "C" fn switch_sp(_args: usize) -> ! {
     naked_asm!(
         "
         ldr     x8, =_stack_top
-        sub     x8, x8, x1
         mov     sp, x8
         bl      {}
         ",

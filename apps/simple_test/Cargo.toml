@@ -1,16 +1,16 @@
 [package]
-name = "simple_test"
-version.workspace = true
 edition.workspace = true
+name = "simple_test"
+publish = false
+version = "0.1.0"
 
 [dev-dependencies]
-bare-test = { workspace = true }
-log = { workspace = true }
+bare-test = {workspace = true}
+log = {workspace = true}
 
 [build-dependencies]
-bare-test-macros = { workspace = true }
-
+bare-test-macros = {workspace = true}
 
 [[test]]
-name = "test1"
 harness = false
+name = "test1"

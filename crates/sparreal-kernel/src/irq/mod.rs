@@ -113,7 +113,7 @@ impl IrqRegister {
         c.set_target_cpu(irq, cpu_hard_id().into());
         c.set_trigger(irq, self.param.cfg.trigger);
         c.irq_enable(irq);
-        debug!("Enable irq {:?} on chip {:?}", irq, irq_parent);
+        debug!("Enable irq {irq:?} on chip {irq_parent:?}");
     }
 
     pub fn priority(mut self, priority: usize) -> Self {
@@ -148,7 +148,7 @@ impl Chip {
                 return Some(());
             }
         } else {
-            warn!("IRQ {:?} no handler", irq);
+            warn!("IRQ {irq:?} no handler");
         }
         self.device.end_interrupt(irq);
         Some(())

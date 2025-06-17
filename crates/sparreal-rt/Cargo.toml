@@ -7,7 +7,7 @@ keywords = ["os"]
 license = "MPL-2.0"
 name = "sparreal-rt"
 repository = "https://github.com/ZR233/sparreal-os"
-version.workspace = true
+version = "0.9.2"
 
 [features]
 default = ["early-print"]

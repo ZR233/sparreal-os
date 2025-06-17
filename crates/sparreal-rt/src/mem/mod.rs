@@ -2,7 +2,9 @@ use arrayvec::ArrayVec;
 use core::ops::Range;
 use core::ptr::{NonNull, slice_from_raw_parts, slice_from_raw_parts_mut};
 use core::sync::atomic::{AtomicUsize, Ordering};
+use fdt_parser::Fdt;
 use memory_addr::MemoryAddr;
+use pie_boot::BootArgs;
 use sparreal_kernel::mem::mmu::*;
 pub use sparreal_kernel::mem::*;
 use sparreal_kernel::platform_if::BootRegion;
@@ -10,19 +12,26 @@ use sparreal_kernel::platform_if::BootRegion;
 static FDT_ADDR: AtomicUsize = AtomicUsize::new(0);
 static FDT_LEN: AtomicUsize = AtomicUsize::new(0);
 
-macro_rules! pa_of {
-    ($name:ident) => {{
-        unsafe extern "C" {
-            static $name: u8;
-        }
-        let mut pa = &raw const $name as *const u8 as usize;
+static mut BOOT_RSV_START: usize = 0;
+static mut BOOT_RSV_END: usize = 0;
 
-        if crate::arch::is_mmu_enabled() {
-            pa -= get_text_va_offset()
-        }
+pub fn setup_boot_args(args: &BootArgs) {
+    set_fdt_addr(args.fdt_addr());
+    unsafe {
+        BOOT_RSV_START = args.rsv_start;
+        BOOT_RSV_END = args.rsv_end;
+    }
+}
 
-        PhysAddr::new(pa)
-    }};
+fn set_fdt_addr(ptr: *mut u8) {
+    let fdt = Fdt::from_ptr(match NonNull::new(ptr) {
+        Some(v) => v,
+        None => return,
+    })
+    .unwrap();
+    let len = fdt.total_size();
+    FDT_ADDR.store(ptr as _, Ordering::Relaxed);
+    FDT_LEN.store(len, Ordering::Relaxed);
 }
 
 macro_rules! section_phys {
@@ -37,23 +46,6 @@ macro_rules! section_phys {
             PhysAddr::new(start)..PhysAddr::new(end)
         }
     };
-}
-
-pub(crate) unsafe fn save_fdt(ptr: *mut u8, free_start: usize) -> Option<NonNull<u8>> {
-    let fdt_addr = free_start.align_up_4k();
-    let fdt = fdt_parser::Fdt::from_ptr(NonNull::new(ptr)?).ok()?;
-    let len = fdt.total_size();
-
-    unsafe {
-        let dst = &mut *slice_from_raw_parts_mut(fdt_addr as _, len);
-        let src = &*slice_from_raw_parts(ptr, len);
-        dst.copy_from_slice(src);
-
-        FDT_ADDR.store(fdt_addr, Ordering::SeqCst);
-        FDT_LEN.store(len, Ordering::SeqCst);
-    }
-
-    NonNull::new(FDT_ADDR.load(Ordering::SeqCst) as _)
 }
 
 unsafe extern "C" {
@@ -90,7 +82,7 @@ fn slice_to_phys_range(data: &[u8]) -> Range<PhysAddr> {
 fn fdt_addr_range() -> Option<Range<PhysAddr>> {
     let len = FDT_LEN.load(Ordering::Relaxed);
     if len != 0 {
-        let fdt_addr = FDT_ADDR.load(Ordering::Relaxed);
+        let fdt_addr = FDT_ADDR.load(Ordering::Relaxed) - get_text_va_offset();
         Some(fdt_addr.into()..(fdt_addr + len.align_up_4k()).into())
     } else {
         None
@@ -100,7 +92,7 @@ fn fdt_addr_range() -> Option<Range<PhysAddr>> {
 pub fn fdt_addr() -> Option<PhysAddr> {
     let len = FDT_LEN.load(Ordering::Relaxed);
     if len != 0 {
-        let fdt_addr = FDT_ADDR.load(Ordering::Relaxed);
+        let fdt_addr = FDT_ADDR.load(Ordering::Relaxed) - get_text_va_offset();
         Some(fdt_addr.into())
     } else {
         None
@@ -126,7 +118,7 @@ pub fn rsv_regions<const N: usize>() -> ArrayVec<BootRegion, N> {
     ));
 
     rsv_regions.push(BootRegion::new(
-        pa_of!(_sdata)..pa_of!(_edata),
+        section_phys!(_sdata, _edata),
         c".data",
         AccessSetting::Read | AccessSetting::Write | AccessSetting::Execute,
         CacheSetting::Normal,
@@ -155,8 +147,20 @@ pub fn rsv_regions<const N: usize>() -> ArrayVec<BootRegion, N> {
             c"fdt",
             AccessSetting::Read,
             CacheSetting::Normal,
-            RegionKind::Other,
+            RegionKind::KImage,
         ));
+    }
+
+    unsafe {
+        if BOOT_RSV_START != 0 && BOOT_RSV_END != 0 {
+            rsv_regions.push(BootRegion::new(
+                PhysAddr::new(BOOT_RSV_START)..PhysAddr::new(BOOT_RSV_END),
+                c"boot_rsv",
+                AccessSetting::Read | AccessSetting::Write,
+                CacheSetting::Normal,
+                RegionKind::KImage,
+            ));
+        }
     }
 
     rsv_regions
