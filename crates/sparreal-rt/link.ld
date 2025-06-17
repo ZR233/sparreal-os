@@ -1,41 +1,45 @@
 OUTPUT_ARCH(%ARCH%)
 
+INCLUDE "pie_boot.x"
+
 ENTRY(_start)
 
 SECTIONS
 {
-    . = %KERNEL_VADDR% ;
     _skernel = .;
 
-    .text : ALIGN(4K) {
+   .text : ALIGN(4K) {
         _stext = .;
-        KEEP(*(.text.head))
-        KEEP(*(.text.boot.start))
-        KEEP(*(.text.boot .text.boot.*))
-        . = ALIGN(4);
-        *(.text .text.*);
-
+        *(.text.boot)
+        *(.text .text.*)
         . = ALIGN(4K);
         _etext = .;
-    } 
+    }
 
+    _srodata = .;
     .rodata : ALIGN(4K) {
-        _srodata = .;
         *(.rodata .rodata.*)
         *(.srodata .srodata.*)
         *(.sdata2 .sdata2.*)
-    } 
-   
+    }
+
+    .init_array : ALIGN(0x10) {
+        __init_array_start = .;
+        *(.init_array .init_array.*)
+        __init_array_end = .;
+    }
+
+    . = ALIGN(4K);
+    _erodata = .;
+
     .data : ALIGN(4K) {
-        _erodata = .;
         _sdata = .;
-        *(.data.boot .data.boot.*)
+        *(.data.boot_page_table)
         . = ALIGN(4K);
         *(.data .data.*)
         *(.sdata .sdata.*)
         *(.got .got.*)
-    } 
-
+    }
     DRIVERS : {  
         _sdriver = .;
         KEEP(*(.driver.register))
@@ -57,6 +61,7 @@ SECTIONS
 
     . = ALIGN(4K);
     _edata = .;
+    __kernel_load_end = .;
 
     .bss (NOLOAD) : ALIGN(4K) {
         _sbss = .;
@@ -64,16 +69,19 @@ SECTIONS
         *(.sbss .sbss.*)
         *(COMMON)
         . = ALIGN(4K);
+        _stack_bottom = .;
+        . += %STACK_SIZE%;
+        _stack_top = .;
         _ebss = .;
+        ;
     }
 
     _ekernel = .;
-    _kernel_size = _ekernel - _skernel;
+    __kernel_code_end = .;
 
-    . = ALIGN(4K);
-    _stack_bottom = .;
-    _stack_top = . + %STACK_SIZE%;
 	/DISCARD/ : {
         *(.comment) *(.gnu*) *(.note*) *(.eh_frame*)
     }
 }
+
+__kernel_load_end = _etdata;

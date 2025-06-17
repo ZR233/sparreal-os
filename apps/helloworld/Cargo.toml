@@ -1,11 +1,12 @@
 [package]
-name = "helloworld"
-version = "0.1.0"
 edition.workspace = true
+name = "helloworld"
+publish = false
+version = "0.1.0"
 
 [dependencies]
-sparreal-rt = { workspace = true, features = [
-    "early-print",
+log = {workspace = true}
+sparreal-kernel = {workspace = true}
+sparreal-rt = {workspace = true, features = [
+  "early-print",
 ]}
-sparreal-kernel = { workspace = true }
-log = { workspace = true }

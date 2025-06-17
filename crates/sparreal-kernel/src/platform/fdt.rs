@@ -47,7 +47,7 @@ impl Fdt {
 
     pub fn get_addr(&self) -> NonNull<u8> {
         NonNull::new(if is_mmu_enabled() {
-            (self.0 + RegionKind::Other.va_offset()).raw() as _
+            (self.0 + RegionKind::KImage.va_offset()).raw() as _
         } else {
             self.0.raw() as _
         })

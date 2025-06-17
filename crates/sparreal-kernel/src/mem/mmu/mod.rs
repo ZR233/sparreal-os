@@ -19,6 +19,7 @@ use crate::{
     io::print::*,
     platform,
     platform_if::{MMUImpl, PlatformImpl},
+    println,
 };
 
 mod paging;
@@ -160,7 +161,7 @@ pub fn new_boot_table() -> Result<usize, &'static str> {
     let tmp_size = tmp_end - main_mem.start.align_up(MB);
     let tmp_pt = (main_mem.end - tmp_size / 2).raw();
 
-    early_dbg_range("page table allocator", tmp_pt..tmp_end.raw());
+    println!("page table allocator {:#x}, {:#x}", tmp_pt, tmp_end.raw());
     unsafe { access.0.add_to_heap(tmp_pt, tmp_end.raw()) };
 
     let mut table =
@@ -198,8 +199,7 @@ pub fn new_boot_table() -> Result<usize, &'static str> {
 
     let table_addr = table.paddr();
 
-    early_dbg("Table: ");
-    early_dbg_hexln(table_addr as _);
+    println!("Table: {table_addr:#x}");
 
     Ok(table_addr)
 }
@@ -225,20 +225,14 @@ fn map_region(
         0
     };
 
-    early_dbg("map region [");
-    early_dbg(region.name());
-    for _ in 0..name_right {
-        early_dbg(" ");
-    }
-    early_dbg("] [");
-    early_dbg_hex(vaddr as _);
-    early_dbg(", ");
-    early_dbg_hex((vaddr + size) as _);
-    early_dbg(") -> [");
-    early_dbg_hex(addr.raw() as _);
-    early_dbg(", ");
-    early_dbg_hex((addr.raw() + size) as _);
-    early_dbgln(")");
+    println!(
+        "map region [{:<12}] [{:#x}, {:#x}) -> [{:#x}, {:#x})",
+        region.name(),
+        vaddr,
+        vaddr + size,
+        addr.raw(),
+        addr.raw() + size
+    );
 
     unsafe {
         if let Err(e) = table.map_region(
@@ -254,12 +248,11 @@ fn map_region(
 
 fn early_handle_err(e: PagingError) {
     match e {
-        PagingError::NoMemory => early_dbgln("no memory"),
+        PagingError::NoMemory => println!("no memory"),
         PagingError::NotAligned(e) => {
-            early_dbg(e);
-            early_dbgln(" not aligned");
+            println!("not aligned: {e}");
         }
-        PagingError::NotMapped => early_dbgln("not mapped"),
+        PagingError::NotMapped => println!("not mapped"),
         PagingError::AlreadyMapped => {}
     }
     panic!()

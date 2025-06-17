@@ -56,7 +56,7 @@ impl Interface for Psci {
             Method::Smc => psci::system_off::<Smc>(),
             Method::Hvc => psci::system_off::<Hvc>(),
         } {
-            error!("shutdown failed: {}", e);
+            error!("shutdown failed: {e}");
         }
     }
 }
@@ -70,6 +70,6 @@ fn probe(info: FdtInfo<'_>) -> Result<Vec<HardwareKind>, Box<dyn Error>> {
     let method = Method::try_from(method)?;
 
     let dev = HardwareKind::Power(Box::new(Psci { method }));
-    debug!("PCSI [{:?}]", method);
+    debug!("PCSI [{method:?}]");
     Ok(alloc::vec![dev])
 }

@@ -25,7 +25,7 @@ pub use mmu::start;
 
 #[repr(align(0x10))]
 pub extern "C" fn __start() -> ! {
-    early_dbgln("Relocate success.");
+    println!("Relocate success.");
     set_mmu_enabled();
 
     io::print::stdout_use_debug();
