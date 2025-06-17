@@ -123,12 +123,14 @@ pub fn entry(args: TokenStream, input: TokenStream) -> TokenStream {
 
 #[allow(unused)]
 fn is_simple_type(ty: &Type, name: &str) -> bool {
-    if let Type::Path(p) = ty {
-        if p.qself.is_none() && p.path.leading_colon.is_none() && p.path.segments.len() == 1 {
-            let segment = p.path.segments.first().unwrap();
-            if segment.ident == name && segment.arguments == PathArguments::None {
-                return true;
-            }
+    if let Type::Path(p) = ty
+        && p.qself.is_none()
+        && p.path.leading_colon.is_none()
+        && p.path.segments.len() == 1
+    {
+        let segment = p.path.segments.first().unwrap();
+        if segment.ident == name && segment.arguments == PathArguments::None {
+            return true;
         }
     }
     false
