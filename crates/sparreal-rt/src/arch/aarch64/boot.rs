@@ -1,4 +1,4 @@
-use core::arch::asm;
+use core::arch::{asm, naked_asm};
 
 use aarch64_cpu::registers::*;
 use pie_boot::BootArgs;
@@ -11,6 +11,11 @@ use crate::mem::{self, clean_bss};
 fn rust_entry(args: &BootArgs) -> ! {
     clean_bss();
     set_trap();
+    let va = args.kimage_start_vma - args.kimage_start_lma;
+    unsafe { switch_sp(args as *const BootArgs as usize, va) }
+}
+
+fn sp_fixed_entry(args: &BootArgs) -> ! {
     let text_va = args.kimage_start_vma - args.kimage_start_lma;
     let fdt = args.fdt_addr();
 
@@ -41,6 +46,19 @@ fn rust_entry(args: &BootArgs) -> ! {
         }
     }
     shutdown()
+}
+
+#[unsafe(naked)]
+unsafe extern "C" fn switch_sp(_args: usize, _va: usize) -> ! {
+    naked_asm!(
+        "
+        ldr     x8, =_stack_top
+        sub     x8, x8, x1
+        mov     sp, x8
+        bl      {}
+        ",
+        sym sp_fixed_entry,
+    )
 }
 
 fn set_trap() {
