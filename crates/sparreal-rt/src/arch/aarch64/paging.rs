@@ -2,7 +2,7 @@ use core::arch::asm;
 
 use aarch64_cpu::{asm::barrier::*, registers::*};
 use page_table_arm::*;
-use sparreal_kernel::{io::print::*, mem::PhysAddr, platform_if::*, println};
+use sparreal_kernel::{mem::PhysAddr, platform_if::*, println};
 
 use crate::mem::fdt_addr;
 
@@ -32,7 +32,7 @@ impl MMU for PageTableImpl {
     }
 
     fn flush_tlb_all() {
-        unsafe { asm!("tlbi vmalle1is; dsb nsh; isb") };
+        unsafe { asm!("tlbi vmalle1; dsb nsh; isb") };
     }
 
     fn page_size() -> usize {
@@ -161,7 +161,7 @@ impl MMU for PageTableImpl {
 
     fn set_kernel_table(addr: usize) {
         TTBR1_EL1.set_baddr(addr as _);
-        Self::flush_tlb_all();
+        // Self::flush_tlb_all();
     }
 
     fn get_kernel_table() -> usize {
@@ -170,7 +170,7 @@ impl MMU for PageTableImpl {
 
     fn set_user_table(addr: usize) {
         TTBR0_EL1.set_baddr(addr as _);
-        Self::flush_tlb_all();
+        // Self::flush_tlb_all();
     }
 
     fn get_user_table() -> usize {
@@ -179,22 +179,6 @@ impl MMU for PageTableImpl {
 
     fn enable_mmu(stack_top: usize, jump_to: usize) -> ! {
         MAIRDefault::mair_el1_apply();
-
-        // Enable TTBR0 and TTBR1 walks, page size = 4K, vaddr size = 48 bits, paddr size = 40 bits.
-        let tcr_flags0 = TCR_EL1::EPD0::EnableTTBR0Walks
-            + TCR_EL1::TG0::KiB_4
-            + TCR_EL1::SH0::Inner
-            + TCR_EL1::ORGN0::WriteBack_ReadAlloc_WriteAlloc_Cacheable
-            + TCR_EL1::IRGN0::WriteBack_ReadAlloc_WriteAlloc_Cacheable
-            + TCR_EL1::T0SZ.val(16);
-        let tcr_flags1 = TCR_EL1::EPD1::EnableTTBR1Walks
-            + TCR_EL1::TG1::KiB_4
-            + TCR_EL1::SH1::Inner
-            + TCR_EL1::ORGN1::WriteBack_ReadAlloc_WriteAlloc_Cacheable
-            + TCR_EL1::IRGN1::WriteBack_ReadAlloc_WriteAlloc_Cacheable
-            + TCR_EL1::T1SZ.val(16);
-        TCR_EL1.write(TCR_EL1::IPS::Bits_48 + tcr_flags0 + tcr_flags1);
-
         cache::dcache_all(CacheOp::CleanAndInvalidate);
 
         println!("TCR_EL1: {}", TCR_EL1.get());
@@ -204,18 +188,17 @@ impl MMU for PageTableImpl {
             });
 
             MMUImpl::flush_tlb_all();
-            // Enable the MMU and turn on I-cache and D-cache
-            SCTLR_EL1
-                .modify(SCTLR_EL1::M::Enable + SCTLR_EL1::C::Cacheable + SCTLR_EL1::I::Cacheable);
-            isb(SY);
 
+            isb(SY);
+            let tmp = 0usize;
             asm!(
                 "MOV      sp,  {stack}",
-                "MOV      x8,  {entry}",
-                "BLR      x8",
+                "MOV      {tmp},  {entry}",
+                "BLR      {tmp}",
                 "B       .",
                 stack = in(reg) stack_top,
                 entry = in(reg) jump_to,
+                tmp = in(reg) tmp,
                 options(nomem, nostack,noreturn)
             )
         }

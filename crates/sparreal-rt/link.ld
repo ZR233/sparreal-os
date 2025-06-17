@@ -70,8 +70,10 @@ SECTIONS
         *(COMMON)
         . = ALIGN(4K);
         _stack_bottom = .;
-        _stack_top = . + %STACK_SIZE%;
+        . += %STACK_SIZE%;
+        _stack_top = .;
         _ebss = .;
+        ;
     }
 
     _ekernel = .;

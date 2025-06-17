@@ -13,7 +13,6 @@ use crate::{
 pub fn start(text_va_offset: usize, platform_info: PlatformInfoKind) -> Result<(), &'static str> {
     println!("Booting up");
     unsafe {
-        set_text_va_offset(text_va_offset);
         init_boot_rsv_region();
     }
 
@@ -29,13 +28,11 @@ pub fn start(text_va_offset: usize, platform_info: PlatformInfoKind) -> Result<(
 
     let stack_top = stack_top();
 
-    let jump_to = __start as usize + text_va_offset;
+    let jump_to = __start as usize;
 
     println!("begin enable mmu");
 
     println!("Jump to __start: {jump_to:#x}, stack top: {stack_top:#x}");
-
-    flush_tlb_all();
 
     fence(Ordering::SeqCst);
     MMUImpl::enable_mmu(stack_top, jump_to)

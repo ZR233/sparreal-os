@@ -14,5 +14,4 @@
         // for xtask
         "system"
     ],
-    "lldb.showDisassembly": "always",
 }

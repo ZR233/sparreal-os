@@ -25,6 +25,20 @@ macro_rules! pa_of {
     }};
 }
 
+macro_rules! section_phys {
+    ($b:ident,$e:ident) => {
+        {
+            unsafe extern "C" {
+                fn $b();
+                fn $e();
+            }
+            let start = $b as *const u8 as usize - get_text_va_offset();
+            let end = $e as *const u8 as usize - get_text_va_offset();
+            PhysAddr::new(start)..PhysAddr::new(end)
+        }
+    };
+}
+
 pub(crate) unsafe fn save_fdt(ptr: *mut u8, free_start: usize) -> Option<NonNull<u8>> {
     let fdt_addr = free_start.align_up_4k();
     let fdt = fdt_parser::Fdt::from_ptr(NonNull::new(ptr)?).ok()?;
@@ -55,23 +69,9 @@ unsafe extern "C" {
     fn _stack_top();
 }
 
-macro_rules! fn_ld_range {
-    ($name:ident) => {
-        pub fn $name() -> &'static [u8] {
-            let start = concat_idents!(_s, $name) as *const u8 as usize;
-            let end = concat_idents!(_e, $name) as *const u8 as usize;
-            unsafe { &*slice_from_raw_parts(start as *mut u8, end - start) }
-        }
-    };
-}
-
-fn_ld_range!(rodata);
-fn_ld_range!(data);
-fn_ld_range!(bss);
-
 pub fn stack_cpu0() -> &'static [u8] {
-    let start = _stack_bottom as *const u8 as usize;
-    let end = _stack_top as *const u8 as usize;
+    let start = _stack_bottom as *const u8 as usize - get_text_va_offset();
+    let end = _stack_top as *const u8 as usize - get_text_va_offset();
     unsafe { &*slice_from_raw_parts(start as *mut u8, end - start) }
 }
 
@@ -110,7 +110,7 @@ pub fn fdt_addr() -> Option<PhysAddr> {
 pub fn rsv_regions<const N: usize>() -> ArrayVec<BootRegion, N> {
     let mut rsv_regions = ArrayVec::<BootRegion, N>::new();
     rsv_regions.push(BootRegion::new(
-        pa_of!(_stext)..pa_of!(_etext),
+        section_phys!(_stext, _etext),
         c".text",
         AccessSetting::Read | AccessSetting::Execute,
         CacheSetting::Normal,
@@ -118,7 +118,7 @@ pub fn rsv_regions<const N: usize>() -> ArrayVec<BootRegion, N> {
     ));
 
     rsv_regions.push(BootRegion::new(
-        slice_to_phys_range(rodata()),
+        section_phys!(_srodata, _erodata),
         c".rodata",
         AccessSetting::Read | AccessSetting::Execute,
         CacheSetting::Normal,
@@ -126,7 +126,7 @@ pub fn rsv_regions<const N: usize>() -> ArrayVec<BootRegion, N> {
     ));
 
     rsv_regions.push(BootRegion::new(
-        slice_to_phys_range(data()),
+        pa_of!(_sdata)..pa_of!(_edata),
         c".data",
         AccessSetting::Read | AccessSetting::Write | AccessSetting::Execute,
         CacheSetting::Normal,
@@ -134,7 +134,7 @@ pub fn rsv_regions<const N: usize>() -> ArrayVec<BootRegion, N> {
     ));
 
     rsv_regions.push(BootRegion::new(
-        slice_to_phys_range(bss()),
+        section_phys!(_sbss, _ebss),
         c".bss",
         AccessSetting::Read | AccessSetting::Write | AccessSetting::Execute,
         CacheSetting::Normal,

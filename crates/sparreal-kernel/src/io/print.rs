@@ -1,9 +1,9 @@
-use core::fmt::{self, Write};
+use core::fmt;
 
 use alloc::boxed::Box;
 use spin::Mutex;
 
-use crate::{boot::debug, platform_if::PlatformImpl};
+use crate::boot::debug;
 
 static STDOUT: Mutex<Option<Box<dyn fmt::Write + Send>>> = Mutex::new(None);
 

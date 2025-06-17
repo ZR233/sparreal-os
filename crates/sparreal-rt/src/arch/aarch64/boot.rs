@@ -12,7 +12,16 @@ fn rust_entry(args: &BootArgs) -> ! {
     clean_bss();
     set_trap();
     let va = args.kimage_start_vma - args.kimage_start_lma;
-    unsafe { switch_sp(args as *const BootArgs as usize, va) }
+    unsafe {
+        asm!(
+            "mov x0, {args}",
+            "mov x1, {va}",
+            "bl {switch_sp}",
+            args = in(reg) args,
+            va = in(reg) va,
+            switch_sp = sym switch_sp,
+        )
+    }
 }
 
 fn sp_fixed_entry(args: &BootArgs) -> ! {
@@ -23,6 +32,12 @@ fn sp_fixed_entry(args: &BootArgs) -> ! {
         mem::mmu::set_text_va_offset(text_va);
         debug::setup_by_fdt(fdt, |r| r as _);
         stdout_use_debug();
+        let sp: usize;
+        asm!(
+            "mov {}, sp",
+            out(reg) sp,
+        );
+        println!("SP: {sp:#x}");
 
         match CurrentEL.read(CurrentEL::EL) {
             1 => println!("EL1"),
@@ -65,9 +80,10 @@ fn set_trap() {
     unsafe {
         asm!(
             "
-        LDR      x0, =vector_table_el1
-        MSR      VBAR_EL1, x0
+        LDR      {0}, =vector_table_el1
+        MSR      VBAR_EL1, {0}
         ",
+            out(reg) _,
         );
     }
 }

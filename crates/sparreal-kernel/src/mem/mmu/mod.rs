@@ -161,7 +161,7 @@ pub fn new_boot_table() -> Result<usize, &'static str> {
     let tmp_size = tmp_end - main_mem.start.align_up(MB);
     let tmp_pt = (main_mem.end - tmp_size / 2).raw();
 
-    println!("page table allocator {}, {}", tmp_pt, tmp_end.raw());
+    println!("page table allocator {:#x}, {:#x}", tmp_pt, tmp_end.raw());
     unsafe { access.0.add_to_heap(tmp_pt, tmp_end.raw()) };
 
     let mut table =

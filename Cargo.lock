@@ -1021,10 +1021,11 @@ dependencies = [
 
 [[package]]
 name = "kasm-aarch64"
-version = "0.1.1"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62c530bcdc6a737da7c79a007f31e6ad069b841c996b3a41c885f081d8551e15"
+checksum = "5d45450cebbbccba594673938b1f08855ea0268cef05436e989bd86708278ace"
 dependencies = [
+ "darling",
  "proc-macro2",
  "quote",
  "syn",
@@ -1310,9 +1311,9 @@ checksum = "e3148f5046208a5d56bcfc03053e3ca6334e51da8dfb19b6cdc8b306fae3283e"
 
 [[package]]
 name = "pie-boot"
-version = "0.1.9"
+version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "729fb105fa50b8595fdc905a79413966404c10d0946903b017b47bb6d62f4ed8"
+checksum = "4b2fa0899edf9283a585388017b4bb4e55dcf262c9a6b3e57910ea82033aab47"
 dependencies = [
  "bindeps-simple",
  "kasm-aarch64",
@@ -1330,14 +1331,15 @@ checksum = "31b7b209c808df86a39f37d8c97161c17320599a44edec0420190a97965014f6"
 
 [[package]]
 name = "pie-boot-loader-aarch64"
-version = "0.1.9"
+version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4a8b199c1221bcae562fa305ed0ceb340f8446a7a2a2e581e2289740d6745bae"
+checksum = "f6855cbd84ac6c62f4fd46292e9c25eba65a8f7df7b1963ae6fcb658550cf30d"
 dependencies = [
  "aarch64-cpu",
  "any-uart",
  "bitflags",
  "fdt-parser",
+ "kasm-aarch64",
  "kdef-pgtable",
  "log",
  "num-align",
