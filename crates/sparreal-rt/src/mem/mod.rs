@@ -26,7 +26,9 @@ pub fn setup_boot_args(args: &BootArgs) {
 fn set_fdt_addr(ptr: *mut u8) {
     let fdt = Fdt::from_ptr(match NonNull::new(ptr) {
         Some(v) => v,
-        None => return,
+        None => {
+            return;
+        }
     })
     .unwrap();
     let len = fdt.total_size();
