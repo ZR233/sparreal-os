@@ -8,31 +8,38 @@ SECTIONS
 {
     _skernel = .;
 
-    .text : ALIGN(4K) {
+   .text : ALIGN(4K) {
         _stext = .;
         *(.text.boot)
         *(.text .text.*)
         . = ALIGN(4K);
         _etext = .;
-    } 
+    }
 
+    _srodata = .;
     .rodata : ALIGN(4K) {
-        _srodata = .;
         *(.rodata .rodata.*)
         *(.srodata .srodata.*)
         *(.sdata2 .sdata2.*)
-    } 
-   
+    }
+
+    .init_array : ALIGN(0x10) {
+        __init_array_start = .;
+        *(.init_array .init_array.*)
+        __init_array_end = .;
+    }
+
+    . = ALIGN(4K);
+    _erodata = .;
+
     .data : ALIGN(4K) {
-        _erodata = .;
         _sdata = .;
-        *(.data.boot .data.boot.*)
+        *(.data.boot_page_table)
         . = ALIGN(4K);
         *(.data .data.*)
         *(.sdata .sdata.*)
         *(.got .got.*)
-    } 
-
+    }
     DRIVERS : {  
         _sdriver = .;
         KEEP(*(.driver.register))
@@ -62,19 +69,17 @@ SECTIONS
         *(.sbss .sbss.*)
         *(COMMON)
         . = ALIGN(4K);
+        _stack_bottom = .;
+        _stack_top = . + %STACK_SIZE%;
         _ebss = .;
     }
 
     _ekernel = .;
     __kernel_code_end = .;
 
-    . = ALIGN(4K);
-    . += 1M;
-    _stack_bottom = .;
-    _stack_top = . + %STACK_SIZE%;
 	/DISCARD/ : {
         *(.comment) *(.gnu*) *(.note*) *(.eh_frame*)
     }
 }
 
-
+__kernel_load_end = _etdata;

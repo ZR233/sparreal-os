@@ -2,7 +2,7 @@ use core::arch::asm;
 
 use aarch64_cpu::{asm::barrier::*, registers::*};
 use page_table_arm::*;
-use sparreal_kernel::{io::print::*, mem::PhysAddr, platform_if::*};
+use sparreal_kernel::{io::print::*, mem::PhysAddr, platform_if::*, println};
 
 use crate::mem::fdt_addr;
 
@@ -197,8 +197,7 @@ impl MMU for PageTableImpl {
 
         cache::dcache_all(CacheOp::CleanAndInvalidate);
 
-        early_dbg("TCR_EL1: ");
-        early_dbg_hexln(TCR_EL1.get());
+        println!("TCR_EL1: {}", TCR_EL1.get());
         unsafe {
             super::debug::setup_by_fdt(fdt_addr().unwrap().raw() as _, |r| {
                 (r + RegionKind::Other.va_offset()) as _

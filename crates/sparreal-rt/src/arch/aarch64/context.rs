@@ -33,7 +33,7 @@ impl Debug for Context {
 
             for (i, v) in chunk.iter().enumerate() {
                 let i = row_start + i;
-                write!(f, "  x{:<3}: {:#18x}", i, v)?;
+                write!(f, "  x{i:<3}: {v:#18x}")?;
             }
             writeln!(f)?;
         }

@@ -25,8 +25,8 @@ macro_rules! pa_of {
     }};
 }
 
-pub(crate) unsafe fn save_fdt(ptr: *mut u8) -> Option<NonNull<u8>> {
-    let fdt_addr = _stack_top as usize;
+pub(crate) unsafe fn save_fdt(ptr: *mut u8, free_start: usize) -> Option<NonNull<u8>> {
+    let fdt_addr = free_start.align_up_4k();
     let fdt = fdt_parser::Fdt::from_ptr(NonNull::new(ptr)?).ok()?;
     let len = fdt.total_size();
 
