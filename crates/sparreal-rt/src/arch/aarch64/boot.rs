@@ -1,14 +1,14 @@
 use core::arch::{asm, naked_asm};
 
 use aarch64_cpu::registers::*;
-use pie_boot::BootArgs;
+use pie_boot::BootInfo;
 use sparreal_kernel::{globals::PlatformInfoKind, io::print::*, platform::shutdown, println};
 
 use super::debug;
 use crate::mem::{self, clean_bss};
 
 #[pie_boot::entry]
-fn rust_entry(args: &BootArgs) -> ! {
+fn rust_entry(args: &BootInfo) -> ! {
     clean_bss();
     set_trap();
     unsafe {
@@ -21,9 +21,9 @@ fn rust_entry(args: &BootArgs) -> ! {
     }
 }
 
-fn sp_fixed_entry(args: &BootArgs) -> ! {
+fn sp_fixed_entry(args: &BootInfo) -> ! {
     let text_va = args.kimage_start_vma - args.kimage_start_lma;
-    let fdt = args.fdt_addr();
+    let fdt = args.fdt;
 
     unsafe {
         mem::mmu::set_text_va_offset(text_va);
@@ -45,8 +45,8 @@ fn sp_fixed_entry(args: &BootArgs) -> ! {
         mem::setup_boot_args(args);
         println!("FDT: {fdt:?}",);
 
-        let platform_info: PlatformInfoKind = if !fdt.is_null() {
-            PlatformInfoKind::new_fdt((fdt as usize - text_va).into())
+        let platform_info: PlatformInfoKind = if let Some(fdt) = fdt {
+            PlatformInfoKind::new_fdt((fdt.as_ptr() as usize - text_va).into())
         } else {
             todo!()
         };

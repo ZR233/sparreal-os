@@ -35,8 +35,8 @@ pub fn reg() -> usize {
 pub fn put(byte: u8) {
     let _ = block!(UART.get().write(byte));
 }
-pub fn setup_by_fdt(fdt: *mut u8, f: FnPhysToVirt) -> Option<()> {
-    let mut uart = any_uart::init(NonNull::new(fdt)?, f)?;
+pub fn setup_by_fdt(fdt: Option<NonNull<u8>>, f: FnPhysToVirt) -> Option<()> {
+    let mut uart = any_uart::init(fdt?, f)?;
     let tx = uart.tx.take().unwrap();
     let reg = REGBASE.load(Ordering::SeqCst);
     if reg == 0 {

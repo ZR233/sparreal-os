@@ -1,4 +1,4 @@
-use core::arch::asm;
+use core::{arch::asm, ptr::NonNull};
 
 use aarch64_cpu::{asm::barrier::*, registers::*};
 use page_table_arm::*;
@@ -183,9 +183,10 @@ impl MMU for PageTableImpl {
 
         println!("TCR_EL1: {}", TCR_EL1.get());
         unsafe {
-            super::debug::setup_by_fdt(fdt_addr().unwrap().raw() as _, |r| {
-                (r + RegionKind::Other.va_offset()) as _
-            });
+            super::debug::setup_by_fdt(
+                Some(NonNull::new(fdt_addr().unwrap().raw() as _).unwrap()),
+                |r| (r + RegionKind::Other.va_offset()) as _,
+            );
 
             MMUImpl::flush_tlb_all();
 

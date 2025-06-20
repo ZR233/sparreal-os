@@ -7,7 +7,7 @@ keywords = ["os"]
 license = "MPL-2.0"
 name = "sparreal-rt"
 repository = "https://github.com/ZR233/sparreal-os"
-version = "0.9.2"
+version = "0.9.3"
 
 [features]
 default = ["early-print"]
@@ -27,11 +27,11 @@ rgb = "0.8"
 sparreal-kernel = {workspace = true, features = ["mmu"]}
 sparreal-macros = {workspace = true}
 spin = "0.9"
+pie-boot = {version = "0.2"}
 
 [target.'cfg(target_arch = "aarch64")'.dependencies]
 aarch64-cpu = "10.0"
 any-uart = "0.2"
 arm-gic-driver = "0.7"
 page-table-arm = "0.1"
-pie-boot = {version = "0.1"}
 smccc = "0.1"

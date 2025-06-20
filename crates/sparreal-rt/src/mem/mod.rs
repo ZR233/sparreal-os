@@ -4,7 +4,7 @@ use core::ptr::{NonNull, slice_from_raw_parts, slice_from_raw_parts_mut};
 use core::sync::atomic::{AtomicUsize, Ordering};
 use fdt_parser::Fdt;
 use memory_addr::MemoryAddr;
-use pie_boot::BootArgs;
+use pie_boot::{BootInfo, MemoryRegionKind};
 use sparreal_kernel::mem::mmu::*;
 pub use sparreal_kernel::mem::*;
 use sparreal_kernel::platform_if::BootRegion;
@@ -15,24 +15,30 @@ static FDT_LEN: AtomicUsize = AtomicUsize::new(0);
 static mut BOOT_RSV_START: usize = 0;
 static mut BOOT_RSV_END: usize = 0;
 
-pub fn setup_boot_args(args: &BootArgs) {
-    set_fdt_addr(args.fdt_addr());
+pub fn setup_boot_args(args: &BootInfo) {
+    set_fdt_addr(args.fdt);
+    let rsv = args
+        .memory_regions
+        .iter()
+        .find(|o| matches!(o.kind, MemoryRegionKind::Bootloader))
+        .unwrap();
     unsafe {
-        BOOT_RSV_START = args.rsv_start;
-        BOOT_RSV_END = args.rsv_end;
+        BOOT_RSV_START = rsv.start;
+        BOOT_RSV_END = rsv.end.align_up_4k();
     }
 }
 
-fn set_fdt_addr(ptr: *mut u8) {
-    let fdt = Fdt::from_ptr(match NonNull::new(ptr) {
+fn set_fdt_addr(ptr: Option<NonNull<u8>>) {
+    let ptr = match ptr {
         Some(v) => v,
         None => {
             return;
         }
-    })
-    .unwrap();
+    };
+
+    let fdt = Fdt::from_ptr(ptr).unwrap();
     let len = fdt.total_size();
-    FDT_ADDR.store(ptr as _, Ordering::Relaxed);
+    FDT_ADDR.store(ptr.as_ptr() as _, Ordering::Relaxed);
     FDT_LEN.store(len, Ordering::Relaxed);
 }
 
@@ -79,16 +85,6 @@ pub fn clean_bss() {
 fn slice_to_phys_range(data: &[u8]) -> Range<PhysAddr> {
     let ptr_range = data.as_ptr_range();
     (ptr_range.start as usize).into()..(ptr_range.end as usize).into()
-}
-
-fn fdt_addr_range() -> Option<Range<PhysAddr>> {
-    let len = FDT_LEN.load(Ordering::Relaxed);
-    if len != 0 {
-        let fdt_addr = FDT_ADDR.load(Ordering::Relaxed) - get_text_va_offset();
-        Some(fdt_addr.into()..(fdt_addr + len.align_up_4k()).into())
-    } else {
-        None
-    }
 }
 
 pub fn fdt_addr() -> Option<PhysAddr> {
@@ -143,15 +139,15 @@ pub fn rsv_regions<const N: usize>() -> ArrayVec<BootRegion, N> {
         RegionKind::Stack,
     ));
 
-    if let Some(fdt) = fdt_addr_range() {
-        rsv_regions.push(BootRegion::new(
-            fdt,
-            c"fdt",
-            AccessSetting::Read,
-            CacheSetting::Normal,
-            RegionKind::KImage,
-        ));
-    }
+    // if let Some(fdt) = fdt_addr_range() {
+    //     rsv_regions.push(BootRegion::new(
+    //         fdt,
+    //         c"fdt",
+    //         AccessSetting::Read,
+    //         CacheSetting::Normal,
+    //         RegionKind::KImage,
+    //     ));
+    // }
 
     unsafe {
         if BOOT_RSV_START != 0 && BOOT_RSV_END != 0 {
