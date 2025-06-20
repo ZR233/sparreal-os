@@ -74,10 +74,10 @@ fn print_start_msg() {
         }
     }
 
-    if let Some(debug) = global_val().platform_info.debugcon() {
-        if let Some(c) = debug.compatibles().next() {
-            print_pair!("Debug Serial", "{}", c);
-        }
+    if let Some(debug) = global_val().platform_info.debugcon()
+        && let Some(c) = debug.compatibles().next()
+    {
+        print_pair!("Debug Serial", "{}", c);
     }
 }
 
