@@ -90,8 +90,18 @@ fn slice_to_phys_range(data: &[u8]) -> Range<PhysAddr> {
 pub fn fdt_addr() -> Option<PhysAddr> {
     let len = FDT_LEN.load(Ordering::Relaxed);
     if len != 0 {
-        let fdt_addr = FDT_ADDR.load(Ordering::Relaxed) - get_text_va_offset();
+        let fdt_addr = FDT_ADDR.load(Ordering::Relaxed);
         Some(fdt_addr.into())
+    } else {
+        None
+    }
+}
+
+fn fdt_addr_range() -> Option<Range<PhysAddr>> {
+    let len = FDT_LEN.load(Ordering::Relaxed);
+    if len != 0 {
+        let fdt_addr = FDT_ADDR.load(Ordering::Relaxed);
+        Some(fdt_addr.align_down_4k().into()..(fdt_addr + len.align_up_4k()).into())
     } else {
         None
     }
@@ -139,27 +149,27 @@ pub fn rsv_regions<const N: usize>() -> ArrayVec<BootRegion, N> {
         RegionKind::Stack,
     ));
 
-    // if let Some(fdt) = fdt_addr_range() {
-    //     rsv_regions.push(BootRegion::new(
-    //         fdt,
-    //         c"fdt",
-    //         AccessSetting::Read,
-    //         CacheSetting::Normal,
-    //         RegionKind::KImage,
-    //     ));
-    // }
-
-    unsafe {
-        if BOOT_RSV_START != 0 && BOOT_RSV_END != 0 {
-            rsv_regions.push(BootRegion::new(
-                PhysAddr::new(BOOT_RSV_START)..PhysAddr::new(BOOT_RSV_END),
-                c"boot_rsv",
-                AccessSetting::Read | AccessSetting::Write,
-                CacheSetting::Normal,
-                RegionKind::KImage,
-            ));
-        }
+    if let Some(fdt) = fdt_addr_range() {
+        rsv_regions.push(BootRegion::new(
+            fdt,
+            c"fdt",
+            AccessSetting::Read,
+            CacheSetting::Normal,
+            RegionKind::Other,
+        ));
     }
+
+    // unsafe {
+    //     if BOOT_RSV_START != 0 && BOOT_RSV_END != 0 {
+    //         rsv_regions.push(BootRegion::new(
+    //             PhysAddr::new(BOOT_RSV_START)..PhysAddr::new(BOOT_RSV_END),
+    //             c"boot_rsv",
+    //             AccessSetting::Read | AccessSetting::Write,
+    //             CacheSetting::Normal,
+    //             RegionKind::KImage,
+    //         ));
+    //     }
+    // }
 
     rsv_regions
 }

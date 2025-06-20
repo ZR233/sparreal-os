@@ -22,7 +22,7 @@ fn rust_entry(args: &BootInfo) -> ! {
 }
 
 fn sp_fixed_entry(args: &BootInfo) -> ! {
-    let text_va = args.kimage_start_vma - args.kimage_start_lma;
+    let text_va = args.kimage_start_vma as usize - args.kimage_start_lma as usize;
     let fdt = args.fdt;
 
     unsafe {
@@ -46,7 +46,7 @@ fn sp_fixed_entry(args: &BootInfo) -> ! {
         println!("FDT: {fdt:?}",);
 
         let platform_info: PlatformInfoKind = if let Some(fdt) = fdt {
-            PlatformInfoKind::new_fdt((fdt.as_ptr() as usize - text_va).into())
+            PlatformInfoKind::new_fdt((fdt.as_ptr() as usize).into())
         } else {
             todo!()
         };
