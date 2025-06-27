@@ -8,7 +8,9 @@ use core::time::Duration;
 use alloc::string::ToString;
 use log::info;
 use sparreal_kernel::{
-    platform::shutdown, prelude::*, task::{self, TaskConfig}, time::{self, spin_delay}
+    prelude::*,
+    task::{self, TaskConfig},
+    time::{self, spin_delay},
 };
 
 #[entry]
