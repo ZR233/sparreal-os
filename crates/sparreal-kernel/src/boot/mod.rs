@@ -44,7 +44,7 @@ pub extern "C" fn __start() -> ! {
     driver::init();
     debug!("Driver initialized");
     task::init();
-    
+
     irq::enable_all();
 
     driver::probe();
