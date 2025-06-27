@@ -23,7 +23,6 @@ mod mmu;
 #[cfg(feature = "mmu")]
 pub use mmu::start;
 
-#[repr(align(0x10))]
 pub extern "C" fn __start() -> ! {
     println!("Relocate success.");
     set_mmu_enabled();

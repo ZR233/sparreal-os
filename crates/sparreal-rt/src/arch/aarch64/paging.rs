@@ -28,7 +28,8 @@ impl MMU for PageTableImpl {
     }
 
     unsafe fn flush_tlb(addr: *const u8) {
-        unsafe { asm!("tlbi vaae1is, {}; dsb nsh; isb", in(reg) addr as usize) };
+        const VA_MASK: usize = (1 << 44) - 1; // VA[55:12] => bits[43:0]Add commentMore actions
+        unsafe { asm!("tlbi vaae1is, {}; dsb sy; isb", in(reg) ((addr as usize >> 12) & VA_MASK)) };
     }
 
     fn flush_tlb_all() {

@@ -1,6 +1,5 @@
 #![no_std]
 #![no_main]
-#![feature(concat_idents)]
 #![feature(used_with_arg)]
 
 extern crate alloc;
