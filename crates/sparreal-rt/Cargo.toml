@@ -32,6 +32,6 @@ pie-boot = {version = "0.2"}
 [target.'cfg(target_arch = "aarch64")'.dependencies]
 aarch64-cpu = "10.0"
 any-uart = "0.2"
-arm-gic-driver = "0.7"
+arm-gic-driver = "0.14"
 page-table-arm = "0.1"
 smccc = "0.1"

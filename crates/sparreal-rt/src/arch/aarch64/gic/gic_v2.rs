@@ -1,15 +1,14 @@
-use alloc::{boxed::Box, format, vec::Vec};
-use core::error::Error;
-
+use alloc::format;
 use arm_gic_driver::v2::Gic;
 use sparreal_kernel::{
-    driver::{module_driver, probe::HardwareKind, register::*},
+    driver::{PlatformDevice, module_driver, probe::OnProbeError, register::FdtInfo},
     mem::iomap,
 };
 
 module_driver!(
     name: "GICv2",
-    kind: DriverKind::Intc,
+    level: ProbeLevel::PreKernel,
+    priority: ProbePriority::INTC,
     probe_kinds: &[
         ProbeKind::Fdt {
             compatibles: &["arm,cortex-a15-gic", "arm,gic-400"],
@@ -18,14 +17,15 @@ module_driver!(
     ] ,
 );
 
-fn probe_gic(info: FdtInfo<'_>) -> Result<Vec<HardwareKind>, Box<dyn Error>> {
-    let mut reg = info
-        .node
-        .reg()
-        .ok_or(format!("[{}] has no reg", info.node.name))?;
+fn probe_gic(info: FdtInfo<'_>, dev: PlatformDevice) -> Result<(), OnProbeError> {
+    let mut reg = info.node.reg().ok_or(OnProbeError::other(format!(
+        "[{}] has no reg",
+        info.node.name()
+    )))?;
 
     let gicd_reg = reg.next().unwrap();
     let gicc_reg = reg.next().unwrap();
+
     let gicd = iomap(
         (gicd_reg.address as usize).into(),
         gicd_reg.size.unwrap_or(0x1000),
@@ -34,7 +34,10 @@ fn probe_gic(info: FdtInfo<'_>) -> Result<Vec<HardwareKind>, Box<dyn Error>> {
         (gicc_reg.address as usize).into(),
         gicc_reg.size.unwrap_or(0x1000),
     );
-    Ok(alloc::vec![HardwareKind::Intc(Box::new(Gic::new(
-        gicd, gicc
-    )))])
+
+    let gic = Gic::new(gicd, gicc);
+
+    dev.register_intc(gic);
+
+    Ok(())
 }

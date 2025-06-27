@@ -1,11 +1,16 @@
-use core::time::Duration;
+use core::{
+    cell::UnsafeCell,
+    ops::{Deref, DerefMut},
+    time::Duration,
+};
 
 use crate::{
     globals::{cpu_global, cpu_global_meybeuninit, cpu_global_mut},
     irq::{IrqHandleResult, IrqParam},
 };
 
-use rdrive::{Device, DeviceGuard, intc::IrqId};
+use rdrive::driver::{Systick, intc::IrqId};
+use spin::{Mutex, MutexGuard};
 pub use timer::Timer;
 
 mod queue;
@@ -13,7 +18,60 @@ mod timer;
 
 #[derive(Default)]
 pub(crate) struct TimerData {
-    timer: Option<Device<Timer>>,
+    mutex: Mutex<()>,
+    timer: UnsafeCell<Option<Timer>>,
+}
+
+unsafe impl Sync for TimerData {}
+unsafe impl Send for TimerData {}
+
+pub(crate) struct Guard<'a> {
+    _guard: MutexGuard<'a, ()>,
+    timer: *mut Option<Timer>,
+    irq_state: bool,
+}
+
+impl Drop for Guard<'_> {
+    fn drop(&mut self) {
+        if let Some(t) = unsafe { &mut *self.timer } {
+            t.set_irq_enable(self.irq_state);
+        }
+    }
+}
+
+impl Deref for Guard<'_> {
+    type Target = Option<Timer>;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { &*self.timer }
+    }
+}
+
+impl DerefMut for Guard<'_> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unsafe { &mut *self.timer }
+    }
+}
+
+impl TimerData {
+    pub fn lock<'a>(&'a self) -> Guard<'a> {
+        let timer = unsafe { &mut *self.timer.get() };
+        let mut irq_state = false;
+        if let Some(t) = timer {
+            irq_state = t.get_irq_status();
+            t.set_irq_enable(false);
+        }
+        let g = self.mutex.lock();
+        Guard {
+            _guard: g,
+            timer: timer as _,
+            irq_state,
+        }
+    }
+
+    fn force_use(&self) -> *mut Option<Timer> {
+        self.timer.get()
+    }
 }
 
 pub fn since_boot() -> Duration {
@@ -21,45 +79,42 @@ pub fn since_boot() -> Duration {
 }
 
 fn _since_boot() -> Option<Duration> {
-    let timer = cpu_global_meybeuninit()?.timer.timer.as_ref()?;
-    Some(timer.since_boot())
+    let time = cpu_global_meybeuninit()?
+        .timer
+        .lock()
+        .as_ref()?
+        .since_boot();
+    Some(time)
 }
 
 pub(crate) fn init_current_cpu() -> Option<()> {
+    let intc;
+    let cfg;
     {
-        let mut ls = rdrive::read(|m| m.timer.all());
-        let (_, timer) = ls.pop()?;
+        let systick = rdrive::get_one::<Systick>()?;
+        intc = systick.descriptor().irq_parent?;
+        let cpu_if = { systick.lock().unwrap().cpu_local() };
+        cfg = cpu_if.irq();
+        cpu_if.set_irq_enable(false);
+        let t = Timer::new(cpu_if);
 
-        let mut timer = timer.upgrade()?.spin_try_borrow_by(0.into());
-
-        unsafe {
-            cpu_global_mut().timer.timer = Some(Device::new(
-                timer.descriptor.clone(),
-                Timer::new(timer.get_current_cpu()),
-            ))
-        };
-    }
-    let mut t = timer_write()?;
-
-    t.set_irq_enable(false);
-    t.enable();
-
-    IrqParam {
-        intc: t.descriptor.irq_parent?,
-        cfg: t.irq(),
-    }
-    .register_builder(irq_handle)
-    .register();
+        unsafe { *cpu_global_mut().timer.lock() = Some(t) };
+    };
+    IrqParam { intc, cfg }
+        .register_builder(irq_handle)
+        .register();
 
     Some(())
 }
 
-fn timer_write() -> Option<DeviceGuard<Timer>> {
-    Some(timer_data().timer.as_ref()?.spin_try_borrow_by(0.into()))
-}
 fn irq_handle(_irq: IrqId) -> IrqHandleResult {
-    let t = unsafe { &mut *timer_data().timer.as_ref().unwrap().force_use() };
-    t.handle_irq();
+    let timer = unsafe { &mut *timer_data().force_use() };
+    if let Some(t) = timer.as_mut() {
+        t.handle_irq();
+    } else {
+        // Timer not initialized, do nothing
+        return IrqHandleResult::None;
+    }
     IrqHandleResult::Handled
 }
 
@@ -68,7 +123,8 @@ fn timer_data() -> &'static TimerData {
 }
 
 pub fn after(duration: Duration, call: impl Fn() + 'static) {
-    if let Some(mut t) = timer_write() {
+    let mut g = timer_data().lock();
+    if let Some(t) = g.as_mut() {
         t.after(duration, call);
     }
 }

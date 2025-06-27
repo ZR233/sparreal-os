@@ -1,21 +1,23 @@
 use core::error::Error;
 
-use alloc::{boxed::Box, format, vec::Vec};
+use alloc::{boxed::Box, format};
 use log::{debug, error};
 use smccc::{Hvc, Smc, psci};
 use sparreal_kernel::driver::{
-    DriverGeneric, DriverResult, module_driver, power::*, probe::HardwareKind, register::*,
+    DriverGeneric, PlatformDevice, driver::power::*, module_driver, probe::OnProbeError,
+    register::*,
 };
 
 module_driver!(
     name: "ARM PSCI",
-    kind: DriverKind::Power,
+    level: ProbeLevel::PreKernel,
+    priority: ProbePriority::DEFAULT,
     probe_kinds: &[
         ProbeKind::Fdt {
             compatibles: &["arm,psci-1.0","arm,psci-0.2","arm,psci"],
             on_probe: probe
         }
-    ]
+    ],
 );
 
 #[derive(Debug, Clone, Copy)]
@@ -41,11 +43,11 @@ struct Psci {
 }
 
 impl DriverGeneric for Psci {
-    fn open(&mut self) -> DriverResult {
+    fn open(&mut self) -> Result<(), KError> {
         Ok(())
     }
 
-    fn close(&mut self) -> DriverResult {
+    fn close(&mut self) -> Result<(), KError> {
         Ok(())
     }
 }
@@ -61,15 +63,16 @@ impl Interface for Psci {
     }
 }
 
-fn probe(info: FdtInfo<'_>) -> Result<Vec<HardwareKind>, Box<dyn Error>> {
+fn probe(info: FdtInfo<'_>, plat_dev: PlatformDevice) -> Result<(), OnProbeError> {
     let method = info
         .node
         .find_property("method")
-        .ok_or("fdt no method property")?
+        .ok_or(OnProbeError::other("fdt no method property"))?
         .str();
     let method = Method::try_from(method)?;
 
-    let dev = HardwareKind::Power(Box::new(Psci { method }));
+    plat_dev.register_power(Psci { method });
+
     debug!("PCSI [{method:?}]");
-    Ok(alloc::vec![dev])
+    Ok(())
 }

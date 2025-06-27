@@ -1,7 +1,7 @@
 #![allow(unused)]
 
 use ansi_rgb::{Foreground, orange};
-use log::LevelFilter;
+use log::{LevelFilter, debug};
 
 use crate::{
     driver,
@@ -26,6 +26,7 @@ pub use mmu::start;
 pub extern "C" fn __start() -> ! {
     println!("Relocate success.");
     set_mmu_enabled();
+    irq::disable_all();
 
     io::print::stdout_use_debug();
 
@@ -41,10 +42,10 @@ pub extern "C" fn __start() -> ! {
     mem::init_page_and_memory();
 
     driver::init();
-
-    irq::enable_all();
-
+    debug!("Driver initialized");
     task::init();
+    
+    irq::enable_all();
 
     driver::probe();
 

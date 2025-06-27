@@ -8,7 +8,7 @@ lock_api = "0.4"
 log = "0.4"
 memory_addr = "0.3"
 page-table-generic = "0.5"
-rdrive = "0.3"
+rdrive = "0.15"
 rgb = "0.8.47"
 sparreal-macros = {workspace = true}
 spin = "0.9"

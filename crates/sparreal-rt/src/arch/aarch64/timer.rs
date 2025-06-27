@@ -1,21 +1,24 @@
-use core::error::Error;
-
 use aarch64_cpu::registers::*;
-use alloc::{boxed::Box, vec::Vec};
+use alloc::boxed::Box;
+use log::debug;
 use sparreal_kernel::driver::{
-    DriverGeneric, DriverResult, intc::IrqConfig, module_driver, probe::HardwareKind, register::*,
-    timer::*,
+    DriverGeneric, PlatformDevice,
+    driver::{intc::IrqConfig, systick::*},
+    module_driver,
+    probe::OnProbeError,
+    register::*,
 };
 
 module_driver!(
     name: "ARMv8 Timer",
-    kind: DriverKind::Timer,
+    level: ProbeLevel::PreKernel,
+    priority: ProbePriority::DEFAULT,
     probe_kinds: &[
         ProbeKind::Fdt {
             compatibles: &["arm,armv8-timer"],
             on_probe: probe_timer
         }
-    ]
+    ],
 );
 
 #[derive(Clone)]
@@ -24,25 +27,27 @@ struct ArmV8Timer {
 }
 
 impl Interface for ArmV8Timer {
-    fn get_current_cpu(&mut self) -> Box<dyn InterfaceCPU> {
+    fn cpu_local(&mut self) -> local::Boxed {
+        CNTP_CTL_EL0.modify(CNTP_CTL_EL0::ENABLE::SET + CNTP_CTL_EL0::IMASK::SET);
+        debug!("ARMv8 Timer: Enabled");
         Box::new(self.clone())
     }
 }
 
-impl InterfaceCPU for ArmV8Timer {
-    fn set_timeval(&mut self, ticks: u64) {
-        CNTP_TVAL_EL0.set(ticks);
+impl local::Interface for ArmV8Timer {
+    fn set_timeval(&self, ticks: usize) {
+        CNTP_TVAL_EL0.set(ticks as _);
     }
 
-    fn current_ticks(&self) -> u64 {
-        CNTPCT_EL0.get()
+    fn current_ticks(&self) -> usize {
+        CNTPCT_EL0.get() as _
     }
 
-    fn tick_hz(&self) -> u64 {
-        CNTFRQ_EL0.get()
+    fn tick_hz(&self) -> usize {
+        CNTFRQ_EL0.get() as _
     }
 
-    fn set_irq_enable(&mut self, enable: bool) {
+    fn set_irq_enable(&self, enable: bool) {
         CNTP_CTL_EL0.modify(if enable {
             CNTP_CTL_EL0::IMASK::CLEAR
         } else {
@@ -60,19 +65,21 @@ impl InterfaceCPU for ArmV8Timer {
 }
 
 impl DriverGeneric for ArmV8Timer {
-    fn open(&mut self) -> DriverResult<()> {
-        CNTP_CTL_EL0.modify(CNTP_CTL_EL0::ENABLE::SET);
+    fn open(&mut self) -> Result<(), KError> {
         Ok(())
     }
 
-    fn close(&mut self) -> DriverResult<()> {
-        CNTP_CTL_EL0.modify(CNTP_CTL_EL0::ENABLE::CLEAR);
+    fn close(&mut self) -> Result<(), KError> {
         Ok(())
     }
 }
 
-fn probe_timer(info: FdtInfo<'_>) -> Result<Vec<HardwareKind>, Box<dyn Error>> {
-    Ok(alloc::vec![HardwareKind::Timer(Box::new(ArmV8Timer {
-        irq: info.irqs[1].clone(),
-    }))])
+fn probe_timer(_info: FdtInfo<'_>, plat_dev: PlatformDevice) -> Result<(), OnProbeError> {
+    let timer = ArmV8Timer {
+        irq: plat_dev.descriptor.irqs[1].clone(),
+    };
+
+    plat_dev.register_systick(timer);
+
+    Ok(())
 }

@@ -4,6 +4,8 @@
 
 extern crate alloc;
 
+pub use rdrive::module_driver;
+
 pub mod __export;
 pub mod boot;
 pub mod globals;
