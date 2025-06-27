@@ -37,6 +37,7 @@ pub fn put(byte: u8) {
 }
 pub fn setup_by_fdt(fdt: Option<NonNull<u8>>, f: FnPhysToVirt) -> Option<()> {
     let mut uart = any_uart::init(fdt?, f)?;
+    uart.set_irq_enable(false);
     let tx = uart.tx.take().unwrap();
     let reg = REGBASE.load(Ordering::SeqCst);
     if reg == 0 {

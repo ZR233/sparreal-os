@@ -1,9 +1,12 @@
-use alloc::string::{String, ToString};
-use alloc::vec::Vec;
+use alloc::{
+    string::{String, ToString},
+    vec::Vec,
+};
 use arrayvec::ArrayVec;
 use core::{ops::Range, ptr::NonNull};
 use fdt_parser::{Node, Pci};
-use rdrive::{Phandle, probe::ProbeData};
+use log::warn;
+use rdrive::{Phandle, driver::Intc};
 
 use crate::irq::IrqInfo;
 use crate::mem::PhysAddr;
@@ -110,25 +113,21 @@ impl GetIrqConfig for Node<'_> {
 }
 
 fn parse_irq_config(parent: Phandle, interrupts: &[Vec<u32>]) -> Option<IrqInfo> {
-    let mut irq_parent = None;
+    let irq_parent = rdrive::fdt_phandle_to_device_id(parent)?;
+    let parent = rdrive::get::<Intc>(irq_parent).expect("Intc not found");
+    let parse_fun = { parent.lock().unwrap().parse_dtb_fn()? };
 
     let mut cfgs = Vec::new();
     for raw in interrupts {
-        match rdrive::read(|m| match &m.probe_kind {
-            ProbeData::Fdt(probe_data) => {
-                irq_parent = probe_data.phandle_2_device_id(parent);
-                Some(probe_data.parse_irq(parent, raw))
-            }
-        }) {
-            Some(Ok(cfg)) => cfgs.push(cfg),
-            _ => continue,
+        if let Ok(v) = parse_fun(raw) {
+            cfgs.push(v);
+        } else {
+            warn!("Failed to parse IRQ config: {raw:?}");
+            continue;
         }
     }
 
-    Some(IrqInfo {
-        irq_parent: irq_parent?,
-        cfgs,
-    })
+    Some(IrqInfo { irq_parent, cfgs })
 }
 
 pub trait GetPciIrqConfig {

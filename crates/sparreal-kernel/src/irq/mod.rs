@@ -3,7 +3,7 @@ use core::cell::UnsafeCell;
 use alloc::{boxed::Box, collections::btree_map::BTreeMap, vec::Vec};
 use log::{debug, warn};
 pub use rdrive::Phandle;
-use rdrive::{Device, DeviceId, IrqId, intc::*};
+use rdrive::{DeviceId, driver::intc::*};
 use spin::Mutex;
 
 use crate::{
@@ -15,28 +15,33 @@ use crate::{
 #[derive(Default)]
 pub struct CpuIrqChips(BTreeMap<DeviceId, Chip>);
 
-pub type IrqHandler = dyn Fn(IrqId) -> IrqHandleResult;
-
 pub struct Chip {
-    device: Device<HardwareCPU>,
     mutex: Mutex<()>,
+    device: Box<dyn local::Interface>,
     handlers: UnsafeCell<BTreeMap<IrqId, Box<IrqHandler>>>,
 }
 
 unsafe impl Send for Chip {}
 unsafe impl Sync for Chip {}
 
+pub type IrqHandler = dyn Fn(IrqId) -> IrqHandleResult;
+
 pub fn enable_all() {
     PlatformImpl::irq_all_enable();
 }
 
-pub(crate) fn init_main_cpu() {
-    for (phandle, intc) in rdrive::intc_all() {
-        debug!("[{}]({:?}) open", intc.descriptor.name, phandle,);
-        let chip = intc.upgrade().unwrap();
-        let mut g = chip.spin_try_borrow_by(0.into());
+pub fn disable_all() {
+    PlatformImpl::irq_all_disable();
+}
 
-        g.open().unwrap();
+pub(crate) fn init_main_cpu() {
+    for chip in rdrive::get_list::<Intc>() {
+        debug!(
+            "[{}]({:?}) open",
+            chip.descriptor().name,
+            chip.descriptor().device_id()
+        );
+        chip.lock().unwrap().open().unwrap();
     }
 
     init_current_cpu();
@@ -45,27 +50,30 @@ pub(crate) fn init_main_cpu() {
 pub(crate) fn init_current_cpu() {
     let globals = unsafe { globals::cpu_global_mut() };
 
-    for (phandle, intc) in rdrive::intc_all() {
-        let intc = intc.upgrade().unwrap();
-        let id = intc.descriptor.device_id;
-        let g = intc.spin_try_borrow_by(0.into());
+    for intc in rdrive::get_list::<Intc>() {
+        let id = intc.descriptor().device_id();
+        let g = intc.lock().unwrap();
 
-        let device = g.current_cpu_setup();
+        let Some(mut cpu_if) = g.cpu_local() else {
+            continue;
+        };
+
+        cpu_if.open().unwrap();
+        cpu_if.set_eoi_mode(false);
+
         debug!(
             "[{}]({:?}) init cpu: {:?}",
-            intc.descriptor.name,
-            phandle,
+            intc.descriptor().name,
+            id,
             platform::cpu_hard_id(),
         );
-
-        let device = Device::new(intc.descriptor.clone(), device);
 
         globals.irq_chips.0.insert(
             id,
             Chip {
-                device,
                 mutex: Mutex::new(()),
-                handlers: UnsafeCell::new(Default::default()),
+                device: cpu_if,
+                handlers: UnsafeCell::new(BTreeMap::new()),
             },
         );
     }
@@ -98,21 +106,30 @@ impl IrqRegister {
         let chip = chip_cpu(irq_parent);
         chip.register_handle(irq, self.handler);
 
-        let mut c = rdrive::edit(|m| m.intc.get(irq_parent))
-            .unwrap()
-            .upgrade()
-            .unwrap()
-            .spin_try_borrow_by(0.into());
-
-        if let Some(p) = self.priority {
-            c.set_priority(irq, p);
+        if self.param.cfg.is_private
+            && let local::Capability::ConfigLocalIrq(c) = chip.device.capability()
+        {
+            if let Some(p) = self.priority {
+                c.set_priority(irq, p).unwrap();
+            } else {
+                c.set_priority(irq, 0).unwrap();
+            }
+            c.set_trigger(irq, self.param.cfg.trigger).unwrap();
+            c.irq_enable(irq).unwrap();
         } else {
-            c.set_priority(irq, 0);
+            let mut c = rdrive::get::<Intc>(irq_parent).unwrap().lock().unwrap();
+            if let Some(p) = self.priority {
+                c.set_priority(irq, p).unwrap();
+            } else {
+                c.set_priority(irq, 0).unwrap();
+            }
+            if !self.param.cfg.is_private {
+                c.set_target_cpu(irq, cpu_hard_id().into()).unwrap();
+            }
+            c.set_trigger(irq, self.param.cfg.trigger).unwrap();
+            c.irq_enable(irq).unwrap();
         }
 
-        c.set_target_cpu(irq, cpu_hard_id().into());
-        c.set_trigger(irq, self.param.cfg.trigger);
-        c.irq_enable(irq);
         debug!("Enable irq {irq:?} on chip {irq_parent:?}");
     }
 
@@ -140,7 +157,7 @@ impl Chip {
     }
 
     fn handle_irq(&self) -> Option<()> {
-        let irq = self.device.get_and_acknowledge_interrupt()?;
+        let irq = self.device.ack()?;
 
         if let Some(handler) = unsafe { &mut *self.handlers.get() }.get(&irq) {
             let res = (handler)(irq);
@@ -150,7 +167,7 @@ impl Chip {
         } else {
             warn!("IRQ {irq:?} no handler");
         }
-        self.device.end_interrupt(irq);
+        self.device.eoi(irq);
         Some(())
     }
 }

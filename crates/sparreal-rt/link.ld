@@ -36,14 +36,15 @@ SECTIONS
         _sdata = .;
         *(.data.boot_page_table)
         . = ALIGN(4K);
-        *(.data .data.*)
-        *(.sdata .sdata.*)
-        *(.got .got.*)
-    }
-    DRIVERS : {  
+
         _sdriver = .;
         KEEP(*(.driver.register))
         _edriver = .;
+
+        *(.data .data.*)
+        *(.sdata .sdata.*)
+        *(.got .got.*)
+
     }
 
     .tdata : ALIGN(0x10) {
