@@ -56,7 +56,6 @@ impl Timer {
     }
 
     fn add_event(&mut self, event: queue::Event) {
-        self.timer.set_irq_enable(false);
         fence(Ordering::SeqCst);
 
         let next_tick = self.q.add_and_next_tick(event);
@@ -64,7 +63,6 @@ impl Timer {
         self.timer.set_timeval(v);
 
         fence(Ordering::SeqCst);
-        self.timer.set_irq_enable(true);
     }
 
     pub fn handle_irq(&mut self) {

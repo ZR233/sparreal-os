@@ -79,12 +79,8 @@ pub fn since_boot() -> Duration {
 }
 
 fn _since_boot() -> Option<Duration> {
-    let time = cpu_global_meybeuninit()?
-        .timer
-        .lock()
-        .as_ref()?
-        .since_boot();
-    Some(time)
+    let timer = unsafe { &*cpu_global_meybeuninit()?.timer.force_use() }.as_ref()?;
+    Some(timer.since_boot())
 }
 
 pub(crate) fn init_current_cpu() -> Option<()> {
