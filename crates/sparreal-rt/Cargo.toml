@@ -7,7 +7,7 @@ keywords = ["os"]
 license = "MPL-2.0"
 name = "sparreal-rt"
 repository = "https://github.com/ZR233/sparreal-os"
-version = "0.9.6"
+version = "0.9.7"
 
 [features]
 default = ["early-print"]
@@ -32,6 +32,6 @@ pie-boot = {version = "0.2"}
 [target.'cfg(target_arch = "aarch64")'.dependencies]
 aarch64-cpu = "10.0"
 any-uart = "0.2"
-arm-gic-driver = "0.14"
+arm-gic-driver = "0.14.8"
 page-table-arm = "0.1"
 smccc = "0.1"
