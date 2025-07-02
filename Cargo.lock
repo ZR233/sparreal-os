@@ -126,9 +126,9 @@ checksum = "e16d2d3311acee920a9eb8d33b8cbc1787ce4a264e85f964c2404b969bdcd487"
 
 [[package]]
 name = "arm-gic-driver"
-version = "0.14.0"
+version = "0.14.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7441452a8dbaacd31076545d35f3e203670d53efded0fe4f812c42b3d80afe00"
+checksum = "a886a953642fbf21eb5928c49a05f021fae007219ae8cb2dafbf403dfeba974a"
 dependencies = [
  "aarch64-cpu",
  "bitflags",
@@ -715,9 +715,9 @@ checksum = "07e28edb80900c19c28f1072f2e8aeca7fa06b23cd4169cefe1af5aa3260783f"
 
 [[package]]
 name = "h2"
-version = "0.4.10"
+version = "0.4.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a9421a676d1b147b16b82c9225157dc629087ef8ec4d5e2960f9437a90dac0a5"
+checksum = "17da50a276f1e01e0ba6c029e47b7100754904ee8a278f886546e98575380785"
 dependencies = [
  "atomic-waker",
  "bytes",
@@ -1373,9 +1373,9 @@ checksum = "e3148f5046208a5d56bcfc03053e3ca6334e51da8dfb19b6cdc8b306fae3283e"
 
 [[package]]
 name = "pie-boot"
-version = "0.2.10"
+version = "0.2.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "64e4e7d1099d23dbc368e75b077807aef4ef2a0ea3e1f24d051ec1404194ac17"
+checksum = "a439b82a0aa449c7432084bb4adce199298cf13545873c2c196f6d9eff77165c"
 dependencies = [
  "bindeps-simple",
  "fdt-parser",
@@ -1398,9 +1398,9 @@ dependencies = [
 
 [[package]]
 name = "pie-boot-loader-aarch64"
-version = "0.1.17"
+version = "0.1.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "79728a8f87a655b7e95fc0531f1459c0996e5c3c595959fa39bb1bb26f3d6c1a"
+checksum = "e23c2c33ab533b93e194f3c1aaa34c1283f03e2b3f9fafe6ddf06c1c782e225d"
 dependencies = [
  "aarch64-cpu",
  "any-uart",
@@ -1710,9 +1710,9 @@ checksum = "2b15c43186be67a4fd63bee50d0303afffcef381492ebe2c5d87f324e1b8815c"
 
 [[package]]
 name = "reqwest"
-version = "0.12.20"
+version = "0.12.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eabf4c97d9130e2bf606614eb937e86edac8292eaa6f422f995d7e8de1eb1813"
+checksum = "cbc931937e6ca3a06e3b6c0aa7841849b160a90351d6ab467a8b9b9959767531"
 dependencies = [
  "base64",
  "bytes",
