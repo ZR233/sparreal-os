@@ -476,10 +476,9 @@ dependencies = [
 
 [[package]]
 name = "dma-api"
-version = "0.3.1"
-dependencies = [
- "aarch64-cpu-ext",
-]
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc2af71bef611a9b47e76fb7844ab348b172aa3649ebdfdcb854a5d30cd47be5"
 
 [[package]]
 name = "embedded-hal"
