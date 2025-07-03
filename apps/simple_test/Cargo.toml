@@ -4,6 +4,9 @@ name = "simple_test"
 publish = false
 version = "0.1.0"
 
+[dependencies]
+dma-api = {version = "0.3", features = ["alloc"]}
+
 [dev-dependencies]
 bare-test = {workspace = true}
 log = {workspace = true}

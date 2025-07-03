@@ -12,6 +12,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "aarch64-cpu-ext"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f2a64358f36fba7d684ef367d38a17f6bd2316b97f0a2ad9eb3fe8cacbaed50a"
+dependencies = [
+ "aarch64-cpu",
+ "tock-registers",
+]
+
+[[package]]
 name = "abi-singleton"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1014,6 +1024,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "io-uring"
+version = "0.7.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b86e202f00093dcba4275d4636b93ef9dd75d025ae560d2521b45ea28ab49013"
+dependencies = [
+ "bitflags",
+ "cfg-if",
+ "libc",
+]
+
+[[package]]
 name = "ipnet"
 version = "2.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1980,6 +2001,7 @@ version = "0.1.0"
 dependencies = [
  "bare-test",
  "bare-test-macros",
+ "dma-api",
  "log",
 ]
 
@@ -2049,9 +2071,10 @@ dependencies = [
 
 [[package]]
 name = "sparreal-rt"
-version = "0.9.7"
+version = "0.9.8"
 dependencies = [
  "aarch64-cpu",
+ "aarch64-cpu-ext",
  "ansi_rgb",
  "any-uart",
  "arm-gic-driver",
@@ -2250,15 +2273,17 @@ checksum = "2b9e2fdb3a1e862c0661768b7ed25390811df1947a8acbfbefe09b47078d93c4"
 
 [[package]]
 name = "tokio"
-version = "1.45.1"
+version = "1.46.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75ef51a33ef1da925cea3e4eb122833cb377c61439ca401b770f54902b806779"
+checksum = "1140bb80481756a8cbe10541f37433b459c5aa1e727b4c020fbfebdc25bf3ec4"
 dependencies = [
  "backtrace",
  "bytes",
+ "io-uring",
  "libc",
  "mio",
  "pin-project-lite",
+ "slab",
  "socket2",
  "windows-sys 0.52.0",
 ]

@@ -6,9 +6,10 @@ use log::trace;
 use sparreal_kernel::{platform_if::*, task::TaskControlBlock};
 
 use crate::{consts, mem::driver_registers};
+use aarch64_cpu_ext::cache;
 
 mod boot;
-mod cache;
+// mod cache;
 mod context;
 mod debug;
 mod gic;
@@ -108,7 +109,15 @@ impl Platform for PlatformImpl {
     }
 
     fn dcache_range(op: CacheOp, addr: usize, size: usize) {
-        cache::dcache_range(op, addr, size);
+        cache::dcache_range(
+            match op {
+                CacheOp::Invalidate => cache::CacheOp::Invalidate,
+                CacheOp::Clean => cache::CacheOp::Clean,
+                CacheOp::CleanAndInvalidate => cache::CacheOp::CleanAndInvalidate,
+            },
+            addr,
+            size,
+        );
     }
 
     fn driver_registers() -> DriverRegisterSlice {

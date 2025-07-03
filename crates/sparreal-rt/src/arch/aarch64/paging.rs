@@ -1,6 +1,7 @@
 use core::{arch::asm, ptr::NonNull};
 
 use aarch64_cpu::{asm::barrier::*, registers::*};
+use aarch64_cpu_ext::asm::tlb::{VAAE1IS, VMALLE1IS, tlbi};
 use page_table_arm::*;
 use sparreal_kernel::{mem::PhysAddr, platform_if::*, println};
 
@@ -28,12 +29,15 @@ impl MMU for PageTableImpl {
     }
 
     unsafe fn flush_tlb(addr: *const u8) {
-        const VA_MASK: usize = (1 << 44) - 1; // VA[55:12] => bits[43:0]Add commentMore actions
-        unsafe { asm!("tlbi vaae1is, {}; dsb sy; isb", in(reg) ((addr as usize >> 12) & VA_MASK)) };
+        tlbi(VAAE1IS::new(addr as _));
+        dsb(SY);
+        isb(SY);
     }
 
     fn flush_tlb_all() {
-        unsafe { asm!("tlbi vmalle1; dsb nsh; isb") };
+        tlbi(VMALLE1IS);
+        dsb(SY);
+        isb(SY);
     }
 
     fn page_size() -> usize {
@@ -161,8 +165,8 @@ impl MMU for PageTableImpl {
     }
 
     fn set_kernel_table(addr: usize) {
+        cache::dcache_all(cache::CacheOp::CleanAndInvalidate);
         TTBR1_EL1.set_baddr(addr as _);
-        // Self::flush_tlb_all();
     }
 
     fn get_kernel_table() -> usize {
@@ -170,8 +174,8 @@ impl MMU for PageTableImpl {
     }
 
     fn set_user_table(addr: usize) {
+        cache::dcache_all(cache::CacheOp::CleanAndInvalidate);
         TTBR0_EL1.set_baddr(addr as _);
-        // Self::flush_tlb_all();
     }
 
     fn get_user_table() -> usize {
@@ -180,7 +184,7 @@ impl MMU for PageTableImpl {
 
     fn enable_mmu(stack_top: usize, jump_to: usize) -> ! {
         MAIRDefault::mair_el1_apply();
-        cache::dcache_all(CacheOp::CleanAndInvalidate);
+        cache::dcache_all(cache::CacheOp::CleanAndInvalidate);
 
         println!("TCR_EL1: {}", TCR_EL1.get());
         unsafe {
