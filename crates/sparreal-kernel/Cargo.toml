@@ -2,7 +2,7 @@
 ansi_rgb = "0.2"
 arrayvec = {version = "0.7", default-features = false}
 buddy_system_allocator = "0.11"
-dma-api = "0.3"
+dma-api = {workspace = true, features = ["alloc"]}
 fdt-parser = "0.4"
 lock_api = "0.4"
 log = "0.4"

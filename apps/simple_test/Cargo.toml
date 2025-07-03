@@ -5,7 +5,7 @@ publish = false
 version = "0.1.0"
 
 [dependencies]
-dma-api = {version = "0.3", features = ["alloc"]}
+dma-api = {workspace = true, features = ["alloc"]}
 
 [dev-dependencies]
 bare-test = {workspace = true}
