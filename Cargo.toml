@@ -12,4 +12,4 @@ dma-api = {version = "0.4"}
 log = "0.4"
 sparreal-kernel = {path = "crates/sparreal-kernel", version = "0.10"}
 sparreal-macros = {path = "crates/sparreal-macros", version = "0.9"}
-sparreal-rt = {path = "crates/sparreal-rt", version = "0.9"}
+sparreal-rt = {path = "crates/sparreal-rt", version = "0.10"}

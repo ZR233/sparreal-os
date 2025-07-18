@@ -2077,7 +2077,7 @@ dependencies = [
 
 [[package]]
 name = "sparreal-rt"
-version = "0.9.8"
+version = "0.10.0"
 dependencies = [
  "aarch64-cpu",
  "aarch64-cpu-ext",
