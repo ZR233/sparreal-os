@@ -6,8 +6,7 @@ version = "0.2"
 version = "0.4"
 
 [dependencies.sparreal-kernel]
-path = "../sparreal-kernel"
-version = "0.9"
+workspace = true
 
 [dependencies.sparreal-macros]
 path = "../sparreal-macros"
@@ -15,8 +14,7 @@ version = "0.9"
 
 [dependencies.sparreal-rt]
 optional = true
-path = "../sparreal-rt"
-version = "0.9"
+workspace = true
 
 [features]
 default = ["rt"]
