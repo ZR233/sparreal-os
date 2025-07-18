@@ -7,6 +7,7 @@ version = "0.4"
 
 [dependencies.sparreal-kernel]
 workspace = true
+features = ["mmu"]
 
 [dependencies.sparreal-macros]
 path = "../sparreal-macros"
