@@ -11,7 +11,7 @@ struct DMAImpl;
 impl Impl for DMAImpl {
     fn map(addr: NonNull<u8>, _size: usize, _direction: dma_api::Direction) -> u64 {
         let vaddr = VirtAddr::from(addr);
-        let paddr = PhysAddr::new(vaddr.raw() - RegionKind::Other.va_offset());
+        let paddr = PhysAddr::from(vaddr);
         paddr.raw() as _
     }
 

@@ -45,7 +45,7 @@ keywords = ["os"]
 license = "MPL-2.0"
 name = "sparreal-kernel"
 repository = "https://github.com/ZR233/sparreal-os"
-version = "0.10.0"
+version = "0.10.1"
 
 [package.edition]
 workspace = true

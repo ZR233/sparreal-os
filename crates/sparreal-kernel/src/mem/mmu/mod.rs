@@ -149,7 +149,13 @@ impl RegionKind {
 impl<T> From<Virt<T>> for Phys<T> {
     fn from(value: Virt<T>) -> Self {
         let v = value.raw();
-        todo!()
+        if (0xffff800000001000..0xffff900000000000).contains(&v) {
+            Phys::new(v - RegionKind::KImage.va_offset())
+        } else if (0xffffe00000000000..0xfffff00000000000).contains(&v) {
+            Phys::new(v - RegionKind::Stack.va_offset())
+        } else {
+            Phys::new(v - RegionKind::Other.va_offset())
+        }
     }
 }
 const MB: usize = 1024 * 1024;
