@@ -20,19 +20,19 @@ arrayvec = {version = "0.7", default-features = false}
 buddy_system_allocator = "0.11"
 fdt-parser = "0.4"
 log = "0.4"
-memory_addr = "0.3"
+memory_addr = "0.4"
 numeric-enum-macro = "0.2"
 page-table-generic = "0.5"
-pie-boot = {version = "0.2"}
+somehal = "0.3"
 rgb = "0.8"
 sparreal-kernel = {workspace = true, features = ["mmu"]}
 sparreal-macros = {workspace = true}
-spin = "0.9"
+spin = "0.10"
 
 [target.'cfg(target_arch = "aarch64")'.dependencies]
 aarch64-cpu = "10.0"
 aarch64-cpu-ext = "0.1"
 any-uart = "0.2"
-arm-gic-driver = "0.14.8"
+arm-gic-driver = {version = "0.15", features = ["rdif"]}
 page-table-arm = "0.1"
-smccc = "0.1"
+smccc = "0.2"

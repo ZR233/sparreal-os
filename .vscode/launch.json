@@ -30,7 +30,7 @@
             "request": "launch",
             "miDebuggerServerAddress": "localhost:1234",
             "program": "${workspaceFolder}/target/kernel.elf",
-            "miDebuggerPath": "gdb-multiarch",
+            "miDebuggerPath": "C:\\msys64\\ucrt64\\bin\\gdb-multiarch.exe",
             "cwd": "${workspaceRoot}",
             "preLaunchTask": "qemu debug"
         },

@@ -1,8 +1,10 @@
-pub use page_table_generic::{AccessSetting, CacheSetting};
+pub use page_table_generic::Access;
 pub use rdrive::register::DriverRegisterSlice;
+pub use rdrive::{DeviceId, IrqId};
 pub use sparreal_macros::api_impl;
 use sparreal_macros::api_trait;
 
+pub use crate::irq::IrqParam;
 pub use crate::mem::region::BootRsvRegionVec;
 
 #[api_trait]
@@ -43,9 +45,17 @@ pub trait Platform {
 
     fn wait_for_interrupt();
 
+    fn irq_init_current_cpu(id: DeviceId);
+
+    fn irq_ack() -> IrqId;
+    fn irq_eoi(irq: IrqId);
+
     fn irq_all_enable();
     fn irq_all_disable();
     fn irq_all_is_enabled() -> bool;
+
+    fn irq_enable(config: IrqParam);
+    fn irq_disable(id: DeviceId, irq: IrqId);
 
     fn shutdown() -> !;
     fn debug_put(b: u8);

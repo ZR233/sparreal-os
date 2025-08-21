@@ -1,28 +1,34 @@
 use core::arch::{asm, naked_asm};
 
 use aarch64_cpu::registers::*;
-use pie_boot::BootInfo;
+use somehal::BootInfo;
 use sparreal_kernel::{globals::PlatformInfoKind, io::print::*, platform::shutdown, println};
 
-use super::debug;
-use crate::mem::{self, clean_bss};
+use crate::mem;
 
-#[pie_boot::entry]
-fn rust_entry(args: &BootInfo) -> ! {
-    clean_bss();
-    set_trap();
-    unsafe {
-        asm!(
-            "mov x0, {args}",
-            "bl {switch_sp}",
-            args = in(reg) args,
-            switch_sp = sym switch_sp,
-        )
-    }
+use super::debug;
+
+#[somehal::entry]
+fn main(args: &BootInfo) -> ! {
+    sp_fixed_entry(args)
 }
 
+// #[somehal::entry]
+// fn rust_entry(args: &BootInfo) -> ! {
+//     clean_bss();
+//     set_trap();
+//     unsafe {
+//         asm!(
+//             "mov x0, {args}",
+//             "bl {switch_sp}",
+//             args = in(reg) args,
+//             switch_sp = sym switch_sp,
+//         )
+//     }
+// }
+
 fn sp_fixed_entry(args: &BootInfo) -> ! {
-    let text_va = args.kimage_start_vma as usize - args.kimage_start_lma as usize;
+    let text_va = args.kcode_offset();
     let fdt = args.fdt;
 
     unsafe {

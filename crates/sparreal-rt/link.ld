@@ -1,6 +1,21 @@
 OUTPUT_ARCH(%ARCH%)
 
-INCLUDE "pie_boot.x"
+STACK_SIZE = 0x40000;
+
+INCLUDE "somehal.x"
+
+SECTIONS
+{
+   .driver : ALIGN(4K) {
+        _sdriver = .;
+        KEEP(*(.driver.register))
+        _edriver = .;
+    }
+} INSERT AFTER .data;
+
+
+
+/* INCLUDE "pie_boot.x"
 
 ENTRY(_start)
 
@@ -85,4 +100,4 @@ SECTIONS
     }
 }
 
-__kernel_load_end = _etdata;
+__kernel_load_end = _etdata; */

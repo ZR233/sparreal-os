@@ -60,11 +60,11 @@ impl MMU for PageTableImpl {
             flags |= PTEFlags::NON_BLOCK;
         }
 
-        pte.set_mair_idx(MAIRDefault::get_idx(match config.setting.cache_setting {
-            CacheSetting::Normal => MAIRKind::Normal,
-            CacheSetting::Device => MAIRKind::Device,
-            CacheSetting::NonCache => MAIRKind::NonCache,
-        }));
+        pte.set_mair_idx(match config.setting.cache_setting {
+            CacheSetting::Normal => 1,
+            CacheSetting::Device => 0,
+            CacheSetting::NonCache => 2,
+        });
 
         let privilege = &config.setting.privilege_access;
 
@@ -120,10 +120,10 @@ impl MMU for PageTableImpl {
         if is_valid {
             let mair_idx = pte.get_mair_idx();
 
-            cache_setting = match MAIRDefault::from_idx(mair_idx) {
-                MAIRKind::Device => CacheSetting::Device,
-                MAIRKind::Normal => CacheSetting::Normal,
-                MAIRKind::NonCache => CacheSetting::NonCache,
+            cache_setting = match mair_idx {
+                0 => CacheSetting::Device,
+                1 => CacheSetting::Normal,
+                _ => CacheSetting::NonCache,
             };
 
             if flags.contains(PTEFlags::AF) {
@@ -183,7 +183,7 @@ impl MMU for PageTableImpl {
     }
 
     fn enable_mmu(stack_top: usize, jump_to: usize) -> ! {
-        MAIRDefault::mair_el1_apply();
+        // MAIRDefault::mair_el1_apply();
         cache::dcache_all(cache::CacheOp::CleanAndInvalidate);
 
         println!("TCR_EL1: {}", TCR_EL1.get());

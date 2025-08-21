@@ -1,10 +1,10 @@
 use arrayvec::ArrayVec;
 use core::ops::Range;
-use core::ptr::{NonNull, slice_from_raw_parts, slice_from_raw_parts_mut};
+use core::ptr::{NonNull, slice_from_raw_parts};
 use core::sync::atomic::{AtomicUsize, Ordering};
 use fdt_parser::Fdt;
 use memory_addr::MemoryAddr;
-use pie_boot::{BootInfo, MemoryRegionKind};
+use somehal::{BootInfo, MemoryRegionKind};
 use sparreal_kernel::mem::mmu::*;
 pub use sparreal_kernel::mem::*;
 use sparreal_kernel::platform_if::BootRegion;
@@ -63,24 +63,24 @@ unsafe extern "C" {
     fn _erodata();
     fn _sdata();
     fn _edata();
-    fn _sbss();
-    fn _ebss();
-    fn _stack_bottom();
-    fn _stack_top();
+    // fn _sbss();
+    // fn _ebss();
+    fn __cpu0_stack_top();
+    fn __cpu0_stack();
 }
 
 pub fn stack_cpu0() -> &'static [u8] {
-    let start = _stack_bottom as *const u8 as usize - get_text_va_offset();
-    let end = _stack_top as *const u8 as usize - get_text_va_offset();
+    let start = __cpu0_stack as *const u8 as usize - get_text_va_offset();
+    let end = __cpu0_stack_top as *const u8 as usize - get_text_va_offset();
     unsafe { &*slice_from_raw_parts(start as *mut u8, end - start) }
 }
 
-pub fn clean_bss() {
-    let start = _sbss as *const u8 as usize;
-    let end = _ebss as *const u8 as usize;
-    let bss = unsafe { &mut *slice_from_raw_parts_mut(start as *mut u8, end - start) };
-    bss.fill(0);
-}
+// pub fn clean_bss() {
+//     let start = _sbss as *const u8 as usize;
+//     let end = _ebss as *const u8 as usize;
+//     let bss = unsafe { &mut *slice_from_raw_parts_mut(start as *mut u8, end - start) };
+//     bss.fill(0);
+// }
 
 fn slice_to_phys_range(data: &[u8]) -> Range<PhysAddr> {
     let ptr_range = data.as_ptr_range();
@@ -134,7 +134,7 @@ pub fn rsv_regions<const N: usize>() -> ArrayVec<BootRegion, N> {
     ));
 
     rsv_regions.push(BootRegion::new(
-        section_phys!(_sbss, _ebss),
+        section_phys!(__bss_start, __bss_stop),
         c".bss",
         AccessSetting::Read | AccessSetting::Write | AccessSetting::Execute,
         CacheSetting::Normal,

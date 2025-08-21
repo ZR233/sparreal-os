@@ -8,7 +8,7 @@ use spin::Mutex;
 
 use crate::{
     globals::{self, cpu_global},
-    platform::{self, cpu_hard_id},
+    platform::{self},
     platform_if::PlatformImpl,
 };
 
@@ -17,7 +17,7 @@ pub struct CpuIrqChips(BTreeMap<DeviceId, Chip>);
 
 pub struct Chip {
     mutex: Mutex<()>,
-    device: Box<dyn local::Interface>,
+    // device: Box<dyn local::Interface>,
     handlers: UnsafeCell<BTreeMap<IrqId, Box<IrqHandler>>>,
 }
 
@@ -53,13 +53,13 @@ pub(crate) fn init_current_cpu() {
     for intc in rdrive::get_list::<Intc>() {
         let id = intc.descriptor().device_id();
         let g = intc.lock().unwrap();
+        PlatformImpl::irq_init_current_cpu(id);
+        // let Some(mut cpu_if) = g.cpu_local() else {
+        //     continue;
+        // };
 
-        let Some(mut cpu_if) = g.cpu_local() else {
-            continue;
-        };
-
-        cpu_if.open().unwrap();
-        cpu_if.set_eoi_mode(false);
+        // cpu_if.open().unwrap();
+        // cpu_if.set_eoi_mode(false);
 
         debug!(
             "[{}]({:?}) init cpu: {:?}",
@@ -72,10 +72,11 @@ pub(crate) fn init_current_cpu() {
             id,
             Chip {
                 mutex: Mutex::new(()),
-                device: cpu_if,
+                // device: cpu_if,
                 handlers: UnsafeCell::new(BTreeMap::new()),
             },
         );
+        drop(g);
     }
 }
 
@@ -106,29 +107,31 @@ impl IrqRegister {
         let chip = chip_cpu(irq_parent);
         chip.register_handle(irq, self.handler);
 
-        if self.param.cfg.is_private
-            && let local::Capability::ConfigLocalIrq(c) = chip.device.capability()
-        {
-            if let Some(p) = self.priority {
-                c.set_priority(irq, p).unwrap();
-            } else {
-                c.set_priority(irq, 0).unwrap();
-            }
-            c.set_trigger(irq, self.param.cfg.trigger).unwrap();
-            c.irq_enable(irq).unwrap();
-        } else {
-            let mut c = rdrive::get::<Intc>(irq_parent).unwrap().lock().unwrap();
-            if let Some(p) = self.priority {
-                c.set_priority(irq, p).unwrap();
-            } else {
-                c.set_priority(irq, 0).unwrap();
-            }
-            if !self.param.cfg.is_private {
-                c.set_target_cpu(irq, cpu_hard_id().into()).unwrap();
-            }
-            c.set_trigger(irq, self.param.cfg.trigger).unwrap();
-            c.irq_enable(irq).unwrap();
-        }
+        PlatformImpl::irq_enable(self.param.clone());
+
+        // if self.param.cfg.is_private
+        //     && let local::Capability::ConfigLocalIrq(c) = chip.device.capability()
+        // {
+        //     if let Some(p) = self.priority {
+        //         c.set_priority(irq, p).unwrap();
+        //     } else {
+        //         c.set_priority(irq, 0).unwrap();
+        //     }
+        //     c.set_trigger(irq, self.param.cfg.trigger).unwrap();
+        //     c.irq_enable(irq).unwrap();
+        // } else {
+        //     let mut c = rdrive::get::<Intc>(irq_parent).unwrap().lock().unwrap();
+        //     if let Some(p) = self.priority {
+        //         c.set_priority(irq, p).unwrap();
+        //     } else {
+        //         c.set_priority(irq, 0).unwrap();
+        //     }
+        //     if !self.param.cfg.is_private {
+        //         c.set_target_cpu(irq, cpu_hard_id().into()).unwrap();
+        //     }
+        //     c.set_trigger(irq, self.param.cfg.trigger).unwrap();
+        //     c.irq_enable(irq).unwrap();
+        // }
 
         debug!("Enable irq {irq:?} on chip {irq_parent:?}");
     }
@@ -157,7 +160,8 @@ impl Chip {
     }
 
     fn handle_irq(&self) -> Option<()> {
-        let irq = self.device.ack()?;
+        // let irq = self.device.ack()?;
+        let irq = PlatformImpl::irq_ack();
 
         if let Some(handler) = unsafe { &mut *self.handlers.get() }.get(&irq) {
             let res = (handler)(irq);
@@ -167,7 +171,8 @@ impl Chip {
         } else {
             warn!("IRQ {irq:?} no handler");
         }
-        self.device.eoi(irq);
+        // self.device.eoi(irq);
+        PlatformImpl::irq_eoi(irq);
         Some(())
     }
 }

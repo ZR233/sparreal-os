@@ -3,20 +3,19 @@ use core::arch::asm;
 use aarch64_cpu::registers::*;
 use context::{__tcb_switch, Context};
 use log::trace;
-use sparreal_kernel::{platform_if::*, task::TaskControlBlock};
+use sparreal_kernel::{driver::IrqId, platform_if::*, task::TaskControlBlock};
 
 use crate::{consts, mem::driver_registers};
 use aarch64_cpu_ext::cache;
 
 mod boot;
-// mod cache;
 mod context;
 mod debug;
 mod gic;
 mod paging;
 mod power;
 mod timer;
-mod trap;
+// mod trap;
 
 #[cfg(not(feature = "vm"))]
 pub fn is_mmu_enabled() -> bool {
@@ -98,6 +97,17 @@ impl Platform for PlatformImpl {
         debug::put(b);
     }
 
+    fn irq_init_current_cpu(id: DeviceId) {
+        gic::init_current_cpu(id);
+    }
+
+    fn irq_ack() -> IrqId {
+        gic::ack()
+    }
+    fn irq_eoi(irq: IrqId) {
+        gic::eoi(irq);
+    }
+
     fn irq_all_enable() {
         unsafe { asm!("msr daifclr, #2") };
     }
@@ -106,6 +116,14 @@ impl Platform for PlatformImpl {
     }
     fn irq_all_is_enabled() -> bool {
         !DAIF.is_set(DAIF::I)
+    }
+
+    fn irq_enable(config: IrqParam) {
+        gic::irq_enable(config);
+    }
+
+    fn irq_disable(id: DeviceId, irq: IrqId) {
+        gic::irq_disable(id, irq);
     }
 
     fn dcache_range(op: CacheOp, addr: usize, size: usize) {
