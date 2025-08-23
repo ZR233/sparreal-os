@@ -1,4 +1,5 @@
 use alloc::{string::String, vec::Vec};
+use arrayvec::ArrayVec;
 use core::hint::spin_loop;
 use core::{ffi::CStr, fmt::Display, ops::Range};
 use log::error;
@@ -8,9 +9,16 @@ use fdt::Fdt;
 use rdrive::register::DriverRegister;
 
 use crate::globals::global_val;
-use crate::mem::PhysAddr;
 use crate::mem::region::boot_regions;
-use crate::platform_if::*;
+use crate::mem::PhysAddr;
+use crate::mem::mmu::{AccessSetting, BootRegion, CacheSetting, RegionKind};
+use crate::{hal_al, platform};
+
+pub mod mmu {
+    pub use crate::hal_al::mmu::{AccessSetting, CacheSetting, PagingError, mmu::*};
+}
+
+pub use crate::hal_al::{CacheOp, hal::*};
 
 pub mod fdt;
 
@@ -71,6 +79,10 @@ impl PlatformInfoKind {
     }
 }
 
+pub fn page_size() -> usize {
+    hal_al::mmu::mmu::page_size()
+}
+
 pub fn cpu_list() -> Vec<CPUInfo> {
     match &global_val().platform_info {
         PlatformInfoKind::DeviceTree(fdt) => fdt.cpus(),
@@ -78,7 +90,7 @@ pub fn cpu_list() -> Vec<CPUInfo> {
 }
 
 pub fn cpu_hard_id() -> CPUHardId {
-    CPUHardId(PlatformImpl::cpu_id())
+    CPUHardId(platform::cpu_id())
 }
 
 pub fn platform_name() -> String {
@@ -162,26 +174,6 @@ pub fn shutdown() -> ! {
     // PlatformImpl::shutdown()
 }
 
-pub fn wait_for_interrupt() {
-    PlatformImpl::wait_for_interrupt();
-}
-
-pub fn kstack_size() -> usize {
-    PlatformImpl::kstack_size()
-}
-
-pub fn page_size() -> usize {
-    #[cfg(feature = "mmu")]
-    {
-        MMUImpl::page_size()
-    }
-
-    #[cfg(not(feature = "mmu"))]
-    {
-        0x1000
-    }
-}
-
 pub fn app_main() {
     unsafe extern "C" {
         fn __sparreal_rt_main();
@@ -242,7 +234,7 @@ impl SerialPort {
 }
 
 pub fn module_registers() -> Vec<DriverRegister> {
-    PlatformImpl::driver_registers().as_slice().to_vec()
+    platform::driver_registers().as_slice().to_vec()
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]

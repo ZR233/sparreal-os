@@ -1,13 +1,25 @@
+[package]
+authors = ["周睿 <zrufo747@outlook.com>"]
+categories = ["embedded", "no-std"]
+description = "Sparreal OS kernel"
+edition.workspace = true
+keywords = ["os"]
+license = "MPL-2.0"
+name = "sparreal-kernel"
+repository = "https://github.com/ZR233/sparreal-os"
+version = "0.10.1"
+
 [dependencies]
 ansi_rgb = "0.2"
 arrayvec = {version = "0.7", default-features = false}
+bitflags = "2.9"
 buddy_system_allocator = "0.11"
 dma-api = {workspace = true, features = ["alloc"]}
 fdt-parser = "0.4"
+heapless = "0.9"
 lock_api = "0.4"
 log = "0.4"
 memory_addr = "0.4"
-page-table-generic = "0.5"
 rdrive = "0.16"
 rgb = "0.8.47"
 sparreal-macros = {workspace = true}
@@ -37,16 +49,3 @@ version = "2"
 
 [features]
 mmu = []
-
-[package]
-authors = ["周睿 <zrufo747@outlook.com>"]
-categories = ["embedded", "no-std"]
-description = "Sparreal OS kernel"
-keywords = ["os"]
-license = "MPL-2.0"
-name = "sparreal-kernel"
-repository = "https://github.com/ZR233/sparreal-os"
-version = "0.10.1"
-
-[package.edition]
-workspace = true

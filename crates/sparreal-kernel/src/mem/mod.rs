@@ -9,14 +9,14 @@ use core::{
 use buddy_system_allocator::Heap;
 use log::debug;
 use mmu::RegionKind;
-use page_table_generic::{AccessSetting, CacheSetting};
+// use page_table_generic::{AccessSetting, CacheSetting};
 use spin::Mutex;
 
 use crate::{globals::global_val, platform::kstack_size, println};
 
 mod addr;
 mod cache;
-#[cfg(feature = "mmu")]
+// #[cfg(feature = "mmu")]
 pub mod mmu;
 pub mod once;
 pub mod region;
@@ -85,55 +85,56 @@ pub(crate) fn init_heap() {
     println!("heap initialized");
 }
 
-pub(crate) fn init_page_and_memory() {
-    #[cfg(feature = "mmu")]
-    mmu::init_table();
+// pub(crate) fn init_page_and_memory() {
+//     #[cfg(feature = "mmu")]
+//     mmu::init_table();
 
-    let main = global_val().main_memory.clone();
+//     let main = global_val().main_memory.clone();
 
-    for memory in global_val().platform_info.memorys() {
-        if memory.contains(&main.start) {
-            continue;
-        }
-        // let start = VirtAddr::from(memory.start);
-        // let end = VirtAddr::from(memory.end);
-        // let len = memory.end - memory.start;
+//     for memory in global_val().platform_info.memorys() {
+//         if memory.contains(&main.start) {
+//             continue;
+//         }
+//         // let start = VirtAddr::from(memory.start);
+//         // let end = VirtAddr::from(memory.end);
+//         // let len = memory.end - memory.start;
 
-        // debug!("Heap add memory [{}, {})", start, end);
-        // ALLOCATOR.add_to_heap(unsafe { &mut *slice_from_raw_parts_mut(start.as_mut_ptr(), len) });
-    }
-}
+//         // debug!("Heap add memory [{}, {})", start, end);
+//         // ALLOCATOR.add_to_heap(unsafe { &mut *slice_from_raw_parts_mut(start.as_mut_ptr(), len) });
+//     }
+// }
 
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct CMemRange {
-    pub start: usize,
-    pub end: usize,
-}
+// #[repr(C)]
+// #[derive(Debug, Clone, Copy)]
+// pub struct CMemRange {
+//     pub start: usize,
+//     pub end: usize,
+// }
 
-impl CMemRange {
-    pub fn as_slice(&self) -> &'static [u8] {
-        unsafe { core::slice::from_raw_parts(self.start as *const u8, self.end - self.start) }
-    }
-}
+// impl CMemRange {
+//     pub fn as_slice(&self) -> &'static [u8] {
+//         unsafe { core::slice::from_raw_parts(self.start as *const u8, self.end - self.start) }
+//     }
+// }
 
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct KernelRegions {
-    pub text: CMemRange,
-    pub rodata: CMemRange,
-    pub data: CMemRange,
-    pub bss: CMemRange,
-}
+// #[repr(C)]
+// #[derive(Debug, Clone, Copy)]
+// pub struct KernelRegions {
+//     pub text: CMemRange,
+//     pub rodata: CMemRange,
+//     pub data: CMemRange,
+//     pub bss: CMemRange,
+// }
 
 pub fn iomap(paddr: PhysAddr, _size: usize) -> NonNull<u8> {
-    #[cfg(feature = "mmu")]
-    {
-        mmu::iomap(paddr, _size)
-    }
+    unimplemented!();
+    // #[cfg(feature = "mmu")]
+    // {
+    //     mmu::iomap(paddr, _size)
+    // }
 
-    #[cfg(not(feature = "mmu"))]
-    unsafe {
-        NonNull::new_unchecked(paddr.as_usize() as *mut u8)
-    }
+    // #[cfg(not(feature = "mmu"))]
+    // unsafe {
+    //     NonNull::new_unchecked(paddr.as_usize() as *mut u8)
+    // }
 }

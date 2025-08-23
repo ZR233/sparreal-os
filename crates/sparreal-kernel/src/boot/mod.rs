@@ -11,48 +11,47 @@ use crate::{
     logger::KLogger,
     mem::{self, VirtAddr, region, stack_top},
     platform::{self, app_main, module_registers, platform_name, shutdown},
-    platform_if::*,
     println, task, time,
 };
 
 pub mod debug;
 
-#[cfg(feature = "mmu")]
-mod mmu;
+// #[cfg(feature = "mmu")]
+// mod mmu;
 
-#[cfg(feature = "mmu")]
-pub use mmu::start;
+// #[cfg(feature = "mmu")]
+// pub use mmu::start;
 
-pub extern "C" fn __start() -> ! {
-    println!("Relocate success.");
-    set_mmu_enabled();
-    irq::disable_all();
+// pub extern "C" fn __start() -> ! {
+//     println!("Kernel starting...");
+//     set_mmu_enabled();
+//     irq::disable_all();
 
-    io::print::stdout_use_debug();
+//     io::print::stdout_use_debug();
 
-    let _ = log::set_logger(&KLogger);
-    log::set_max_level(LevelFilter::Trace);
+//     let _ = log::set_logger(&KLogger);
+//     log::set_max_level(LevelFilter::Trace);
 
-    mem::init_heap();
+//     mem::init_heap();
 
-    unsafe { globals::setup_percpu() };
+//     unsafe { globals::setup_percpu() };
 
-    print_start_msg();
+//     print_start_msg();
 
-    mem::init_page_and_memory();
+//     mem::init_page_and_memory();
 
-    driver::init();
-    debug!("Driver initialized");
-    task::init();
+//     driver::init();
+//     debug!("Driver initialized");
+//     task::init();
 
-    irq::enable_all();
+//     irq::enable_all();
 
-    driver::probe();
+//     driver::probe();
 
-    app_main();
+//     app_main();
 
-    shutdown()
-}
+//     shutdown()
+// }
 
 macro_rules! print_pair {
     ($name:expr, $($arg:tt)*) => {

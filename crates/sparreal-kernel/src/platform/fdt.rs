@@ -8,9 +8,8 @@ use fdt_parser::{Node, Pci};
 use log::warn;
 use rdrive::{Phandle, driver::Intc};
 
-use crate::irq::IrqInfo;
 use crate::mem::PhysAddr;
-use crate::platform_if::{RegionKind, is_mmu_enabled};
+use crate::{irq::IrqInfo, mem::mmu::RegionKind};
 
 use super::{CPUInfo, SerialPort};
 
@@ -49,12 +48,7 @@ impl Fdt {
     }
 
     pub fn get_addr(&self) -> NonNull<u8> {
-        NonNull::new(if is_mmu_enabled() {
-            (self.0 + RegionKind::Other.va_offset()).raw() as _
-        } else {
-            self.0.raw() as _
-        })
-        .unwrap()
+        NonNull::new((self.0 + RegionKind::Other.va_offset()).raw() as _).unwrap()
     }
 
     pub fn memorys(&self) -> ArrayVec<Range<PhysAddr>, 12> {

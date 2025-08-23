@@ -6,7 +6,6 @@ use crate::{
     io::print::*,
     mem::{mmu::*, region::init_boot_rsv_region, stack_top},
     platform::{PlatformInfoKind, regsions},
-    platform_if::MMUImpl,
     println,
 };
 

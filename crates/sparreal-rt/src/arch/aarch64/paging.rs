@@ -12,7 +12,7 @@ use super::cache;
 pub struct PageTableImpl;
 
 #[api_impl]
-impl MMU for PageTableImpl {
+impl Mmu for PageTableImpl {
     unsafe fn boot_regions() -> BootRsvRegionVec {
         let mut ret = crate::mem::rsv_regions();
         let debug_reg = PhysAddr::new(super::debug::reg()).align_down(0x1000);

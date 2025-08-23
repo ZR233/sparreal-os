@@ -1,6 +1,6 @@
 use core::fmt::Write;
 
-use crate::platform_if::PlatformImpl;
+use crate::platform;
 
 pub struct DebugWriter;
 
@@ -12,7 +12,7 @@ impl Write for DebugWriter {
 }
 pub fn write_str(s: &str) {
     s.bytes().for_each(|ch| {
-        PlatformImpl::debug_put(ch);
+        platform::debug_put(ch);
     });
 }
 

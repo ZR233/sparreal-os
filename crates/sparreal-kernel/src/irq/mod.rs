@@ -8,8 +8,7 @@ use spin::Mutex;
 
 use crate::{
     globals::{self, cpu_global},
-    platform::{self},
-    platform_if::PlatformImpl,
+    platform,
 };
 
 #[derive(Default)]
@@ -27,11 +26,11 @@ unsafe impl Sync for Chip {}
 pub type IrqHandler = dyn Fn(IrqId) -> IrqHandleResult;
 
 pub fn enable_all() {
-    PlatformImpl::irq_all_enable();
+    platform::irq_all_enable();
 }
 
 pub fn disable_all() {
-    PlatformImpl::irq_all_disable();
+    platform::irq_all_disable();
 }
 
 pub(crate) fn init_main_cpu() {
@@ -53,7 +52,7 @@ pub(crate) fn init_current_cpu() {
     for intc in rdrive::get_list::<Intc>() {
         let id = intc.descriptor().device_id();
         let g = intc.lock().unwrap();
-        PlatformImpl::irq_init_current_cpu(id);
+        platform::irq_init_current_cpu(id);
         // let Some(mut cpu_if) = g.cpu_local() else {
         //     continue;
         // };
@@ -107,7 +106,7 @@ impl IrqRegister {
         let chip = chip_cpu(irq_parent);
         chip.register_handle(irq, self.handler);
 
-        PlatformImpl::irq_enable(self.param.clone());
+        platform::irq_enable(self.param.clone());
 
         // if self.param.cfg.is_private
         //     && let local::Capability::ConfigLocalIrq(c) = chip.device.capability()
@@ -161,7 +160,7 @@ impl Chip {
 
     fn handle_irq(&self) -> Option<()> {
         // let irq = self.device.ack()?;
-        let irq = PlatformImpl::irq_ack();
+        let irq = platform::irq_ack();
 
         if let Some(handler) = unsafe { &mut *self.handlers.get() }.get(&irq) {
             let res = (handler)(irq);
@@ -172,7 +171,7 @@ impl Chip {
             warn!("IRQ {irq:?} no handler");
         }
         // self.device.eoi(irq);
-        PlatformImpl::irq_eoi(irq);
+        platform::irq_eoi(irq);
         Some(())
     }
 }
@@ -183,8 +182,8 @@ pub struct NoIrqGuard {
 
 impl NoIrqGuard {
     pub fn new() -> Self {
-        let is_enabled = PlatformImpl::irq_all_is_enabled();
-        PlatformImpl::irq_all_disable();
+        let is_enabled = platform::irq_all_is_enabled();
+        platform::irq_all_disable();
         Self { is_enabled }
     }
 }

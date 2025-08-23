@@ -1,19 +1,29 @@
-pub use page_table_generic::Access;
-#[cfg(feature = "mmu")]
-pub use page_table_generic::{AccessSetting, CacheSetting, err::PagingError};
-pub use rdrive::register::DriverRegisterSlice;
-pub use rdrive::{DeviceId, IrqId};
-pub use sparreal_macros::api_impl;
-use sparreal_macros::api_trait;
+pub use rdrive::{DeviceId, IrqId, register::DriverRegisterSlice};
 
 pub use crate::irq::IrqParam;
-pub use crate::mem::region::BootRsvRegionVec;
+use crate::mem::mmu::BootRegion;
 
-#[api_trait]
-pub trait Platform {
+pub mod mmu;
+pub mod run;
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub enum CacheOp {
+    /// Write back to memory
+    Clean,
+    /// Invalidate cache
+    Invalidate,
+    /// Clean and invalidate
+    CleanAndInvalidate,
+}
+
+#[trait_ffi::def_extern_trait(mod_path = "hal_al")]
+pub trait Hal: mmu::Mmu {
     fn kstack_size() -> usize;
     fn cpu_id() -> usize;
     fn cpu_context_size() -> usize;
+
+    fn boot_region_by_index(index: usize) -> Option<BootRegion>;
 
     /// # Safety
     ///
@@ -66,7 +76,3 @@ pub trait Platform {
 
     fn driver_registers() -> DriverRegisterSlice;
 }
-
-pub use crate::mem::mmu::*;
-use crate::mem::{Phys, Virt};
-

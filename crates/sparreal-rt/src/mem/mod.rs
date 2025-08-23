@@ -7,7 +7,6 @@ use memory_addr::MemoryAddr;
 use somehal::{BootInfo, MemoryRegionKind};
 use sparreal_kernel::mem::mmu::*;
 pub use sparreal_kernel::mem::*;
-use sparreal_kernel::platform_if::BootRegion;
 
 static FDT_ADDR: AtomicUsize = AtomicUsize::new(0);
 static FDT_LEN: AtomicUsize = AtomicUsize::new(0);
