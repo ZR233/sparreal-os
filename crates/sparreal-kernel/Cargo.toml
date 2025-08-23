@@ -11,7 +11,8 @@ page-table-generic = "0.5"
 rdrive = "0.16"
 rgb = "0.8.47"
 sparreal-macros = {workspace = true}
-spin = "0.9"
+spin = "0.10"
+trait-ffi = "0.2"
 
 [dependencies.anyhow]
 default-features = false

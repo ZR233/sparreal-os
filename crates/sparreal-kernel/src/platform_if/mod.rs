@@ -1,4 +1,6 @@
 pub use page_table_generic::Access;
+#[cfg(feature = "mmu")]
+use page_table_generic::{AccessSetting, CacheSetting, err::PagingError};
 pub use rdrive::register::DriverRegisterSlice;
 pub use rdrive::{DeviceId, IrqId};
 pub use sparreal_macros::api_impl;
@@ -67,31 +69,27 @@ pub trait Platform {
 
 #[cfg(feature = "mmu")]
 pub use crate::mem::mmu::*;
+#[cfg(feature = "mmu")]
+use crate::mem::{Phys, Virt};
 
 #[cfg(feature = "mmu")]
 #[api_trait]
 pub trait MMU {
-    /// 启动所需的内存范围
-    ///
-    /// # Safety
-    ///
-    /// `MMU` 开启以前，链接地址是物理地址，开启后，为虚拟地址，应在`MMU`开启前调用并保存，开启`MMU`后若调用会错误的使用虚拟地址作为返回值
-    unsafe fn boot_regions() -> BootRsvRegionVec;
-    fn set_kernel_table(addr: usize);
-    fn get_kernel_table() -> usize;
-    fn set_user_table(addr: usize);
-    fn get_user_table() -> usize;
+    /// Called once after memory management is ready.
+    fn setup();
 
-    /// flush tlb
-    /// # Safety
-    /// addr must be page aligned
-    unsafe fn flush_tlb(addr: *const u8);
-    fn flush_tlb_all();
-    fn page_size() -> usize;
-    fn table_level() -> usize;
-    fn new_pte(config: PTEGeneric) -> usize;
-    fn read_pte(pte: usize) -> PTEGeneric;
-    fn enable_mmu(stack_top: usize, jump_to: usize) -> !;
+    fn new_table() -> Phys<u8>;
+    fn release_table(table_addr: Phys<u8>);
+    fn current_table_addr() -> Phys<u8>;
+    fn switch_table(new_table_addr: Phys<u8>);
+    fn map_range(
+        table_addr: Phys<u8>,
+        va_start: Virt<u8>,
+        pa_start: Virt<u8>,
+        size: usize,
+        access: AccessSetting,
+        cache: CacheSetting,
+    ) -> Result<(), PagingError>;
 }
 
 #[repr(C)]
