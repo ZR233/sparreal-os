@@ -71,12 +71,18 @@ pub(crate) fn init() {
     platform::mmu::switch_table(table);
 
     unsafe {
-        let start = TMP_PAGE_ALLOC_ADDR as *mut u8;
-        let end = MAIN_RAM.wait().end.raw() as *mut u8;
-        let ram = core::slice::from_raw_parts_mut(start, end as usize - start as usize);
+        let start = TMP_PAGE_ALLOC_ADDR;
+        let end = MAIN_RAM.wait().end.raw();
+        let len = end - start;
+        let start = (start + LINER_OFFSET) as *mut u8;
+        let ram = core::slice::from_raw_parts_mut(start, len);
 
         ALLOCATOR.add_to_heap(ram);
-        println!("expand heap [{:#x}, {:#x})", start as usize, end as usize);
+        println!(
+            "expand heap [{:#x}, {:#x})",
+            start as usize,
+            start as usize + len
+        );
     }
 }
 
