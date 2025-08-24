@@ -3,17 +3,19 @@ use core::arch::asm;
 use aarch64_cpu::registers::*;
 use context::{__tcb_switch, Context};
 use log::trace;
+use somehal::{mem::MapRangeConfig, println};
 use sparreal_kernel::{
     driver::IrqId,
     hal_al::{
         CacheOp, DeviceId, DriverRegisterSlice, Hal,
-        mmu::{Mmu, PagingError},
+        mmu::{Access, Mmu, PageTable, PagingError},
     },
     impl_trait,
     irq::IrqParam,
     mem::{
-        Phys, Virt,
+        Phys, PhysAddr, Virt,
         mmu::{AccessSetting, BootMemoryKind, BootRegion, CacheSetting, RegionKind},
+        region,
     },
     task::TaskControlBlock,
 };
@@ -39,6 +41,28 @@ mod timer;
 //     SCTLR_EL2.matches_any(&[SCTLR_EL2::M::Enable])
 // }
 
+struct BAccess<'a>(&'a mut dyn Access);
+impl Access for BAccess<'_> {
+    unsafe fn alloc(
+        &mut self,
+        layout: core::alloc::Layout,
+    ) -> Option<sparreal_kernel::hal_al::mmu::PhysAddr> {
+        unsafe { self.0.alloc(layout) }
+    }
+
+    unsafe fn dealloc(
+        &mut self,
+        ptr: sparreal_kernel::hal_al::mmu::PhysAddr,
+        layout: core::alloc::Layout,
+    ) {
+        unsafe { self.0.dealloc(ptr, layout) }
+    }
+
+    fn phys_to_mut(&self, phys: sparreal_kernel::hal_al::mmu::PhysAddr) -> *mut u8 {
+        self.0.phys_to_mut(phys)
+    }
+}
+
 struct HalImpl;
 
 impl_trait! {
@@ -49,36 +73,84 @@ impl Mmu for HalImpl {
     }
 
     fn page_size() -> usize {
-        0x1000
+        somehal::mem::page_size()
     }
 
-    fn new_table() -> Phys<u8> {
+    fn kimage_va_offset() -> usize {
+        crate::mem::va_offset()
+    }
+
+    fn new_table(alloc: &mut dyn Access) -> Result<PageTable, PagingError> {
+        let mut baccess = BAccess(alloc);
+        let table = somehal::mem::mmu::new_table(&mut baccess) ?;
+        Ok(PageTable { id: 0, addr: table.paddr().raw().into() })
+    }
+
+    fn release_table(_table: PageTable) {
         todo!()
     }
 
-    fn release_table(table_addr: Phys<u8>) {
-        todo!()
+    fn current_table() -> PageTable {
+        let tb = somehal::mem::mmu::get_kernal_table();
+        PageTable { id: tb.id, addr: tb.addr.into() }
     }
 
-    fn current_table_addr() -> Phys<u8> {
-        todo!()
-    }
-
-    fn switch_table(new_table_addr: Phys<u8>) {
-        todo!()
+    fn switch_table(new_table: PageTable) {
+        somehal::mem::mmu::set_kernal_table(map_table(new_table));
     }
 
     fn map_range(
-        table_addr: Phys<u8>,
+        table: PageTable,
+        alloc: &mut dyn Access,
+        name: &'static str,
         va_start: Virt<u8>,
-        pa_start: Virt<u8>,
+        pa_start: Phys<u8>,
         size: usize,
         access: AccessSetting,
         cache: CacheSetting,
     ) -> Result<(), PagingError> {
-        todo!()
+        let mut baccess = BAccess(alloc);
+
+
+        let access = match access {
+            AccessSetting::Read => somehal::mem::AccessKind::Read,
+            AccessSetting::ReadWrite => somehal::mem::AccessKind::ReadWrite,
+            AccessSetting::ReadExecute => somehal::mem::AccessKind::ReadExecute,
+            AccessSetting::ReadWriteExecute => somehal::mem::AccessKind::ReadWriteExecute,
+        };
+
+        let mut cpu_share = true;
+
+        let cache = match cache {
+            CacheSetting::Normal => somehal::mem::CacheKind::Normal,
+            CacheSetting::Device => somehal::mem::CacheKind::Device,
+            CacheSetting::NonCacheable => somehal::mem::CacheKind::NoCache,
+            CacheSetting::PerCpu => {
+                cpu_share = false;
+                somehal::mem::CacheKind::Normal
+            },
+        };
+
+        let config = MapRangeConfig {
+            vaddr: va_start.raw() as _,
+            paddr: pa_start.raw(),
+            size,
+            name,
+            access,
+            cache,
+            cpu_share,
+        };
+        somehal::mem::mmu::table_map(map_table(table), &mut baccess, config)?;
+         Ok(())
     }
 }
+}
+
+fn map_table(v: PageTable) -> somehal::mem::PageTable {
+    somehal::mem::PageTable {
+        id: v.id,
+        addr: v.addr.into(),
+    }
 }
 
 impl_trait! {
@@ -99,37 +171,22 @@ impl Hal for HalImpl {
         crate::mem::boot_regions().get(index).cloned()
     }
 
-    #[doc = " # Safety"]
-    #[doc = ""]
-    #[doc = ""]
     unsafe fn get_current_tcb_addr() -> *mut u8 {
         todo!()
     }
 
-    #[doc = " # Safety"]
-    #[doc = ""]
-    #[doc = ""]
     unsafe fn set_current_tcb_addr(addr: *mut u8) {
         todo!()
     }
 
-    #[doc = " # Safety"]
-    #[doc = ""]
-    #[doc = " `ctx_ptr` 是有效的上下文指针"]
     unsafe fn cpu_context_sp(ctx_ptr: *const u8) -> usize {
         todo!()
     }
 
-    #[doc = " # Safety"]
-    #[doc = ""]
-    #[doc = " `ctx_ptr` 是有效的上下文指针"]
     unsafe fn cpu_context_set_sp(ctx_ptr: *const u8, sp: usize) {
         todo!()
     }
 
-    #[doc = " # Safety"]
-    #[doc = ""]
-    #[doc = " `ctx_ptr` 是有效的上下文指针"]
     unsafe fn cpu_context_set_pc(ctx_ptr: *const u8, pc: usize) {
         todo!()
     }
@@ -194,6 +251,7 @@ impl Hal for HalImpl {
     }
 }
 }
+
 // struct PlatformImpl;
 
 // #[api_impl]

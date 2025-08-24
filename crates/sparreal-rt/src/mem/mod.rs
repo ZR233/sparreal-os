@@ -3,6 +3,7 @@ use core::ptr::{NonNull, slice_from_raw_parts};
 use core::sync::atomic::{AtomicUsize, Ordering};
 use fdt_parser::Fdt;
 use memory_addr::MemoryAddr;
+use somehal::mem::page_size;
 use somehal::{BootInfo, MemoryRegionKind};
 use sparreal_kernel::mem::mmu::*;
 use sparreal_kernel::mem::once::OnceStatic;
@@ -15,9 +16,6 @@ static mut VA_OFFSET: usize = 0;
 
 static FDT_ADDR: AtomicUsize = AtomicUsize::new(0);
 static FDT_LEN: AtomicUsize = AtomicUsize::new(0);
-
-static mut BOOT_RSV_START: usize = 0;
-static mut BOOT_RSV_END: usize = 0;
 
 pub fn setup_boot_args(args: &BootInfo) {
     set_fdt_addr(args.fdt);
@@ -60,7 +58,7 @@ pub fn setup_boot_args(args: &BootInfo) {
             .push(BootRegion::new(
                 Phys::from(region.start)..Phys::from(region.end),
                 name,
-                AccessSetting::Read | AccessSetting::Write | AccessSetting::Execute,
+                AccessSetting::ReadWriteExecute,
                 CacheSetting::Normal,
                 kind,
             ))
@@ -71,6 +69,21 @@ pub fn setup_boot_args(args: &BootInfo) {
         regions.push(region).expect("boot regions overflow");
     }
 
+    if let Some(debug) = &args.debug_console {
+        let start = (debug.base as usize).align_down(page_size());
+        let end = (debug.base as usize + 0x1000).align_up(page_size());
+
+        regions
+            .push(BootRegion::new(
+                start.into()..end.into(),
+                c"debug",
+                AccessSetting::ReadWrite,
+                CacheSetting::Device,
+                BootMemoryKind::Mmio,
+            ))
+            .expect("boot regions overflow");
+    }
+
     regions.sort_by(|a, b| a.range.start.raw().cmp(&b.range.start.raw()));
 
     unsafe { OnceStatic::set(&BOOT_REGIONS, regions) };
@@ -79,7 +92,7 @@ pub fn setup_boot_args(args: &BootInfo) {
 
     for region in boot_regions() {
         somehal::println!(
-            "  [{:<16}] {:?} {:?}\t{:?}\t{:?}",
+            "  [{:<16}] {:?}\t{:?}\t{:?}\t{:?}",
             region.name(),
             region.range,
             region.kind,
@@ -87,19 +100,9 @@ pub fn setup_boot_args(args: &BootInfo) {
             region.access,
         );
     }
-
-    // let rsv = args
-    //     .memory_regions
-    //     .iter()
-    //     .find(|o| matches!(o.kind, MemoryRegionKind::Bootloader))
-    //     .unwrap();
-    // unsafe {
-    //     BOOT_RSV_START = rsv.start;
-    //     BOOT_RSV_END = rsv.end.align_up_4k();
-    // }
 }
 
-fn va_offset() -> usize {
+pub(crate) fn va_offset() -> usize {
     unsafe { VA_OFFSET }
 }
 
@@ -154,13 +157,6 @@ pub fn stack_cpu0() -> &'static [u8] {
     unsafe { &*slice_from_raw_parts(start as *mut u8, end - start) }
 }
 
-// pub fn clean_bss() {
-//     let start = _sbss as *const u8 as usize;
-//     let end = _ebss as *const u8 as usize;
-//     let bss = unsafe { &mut *slice_from_raw_parts_mut(start as *mut u8, end - start) };
-//     bss.fill(0);
-// }
-
 fn slice_to_phys_range(data: &[u8]) -> Range<PhysAddr> {
     let ptr_range = data.as_ptr_range();
     (ptr_range.start as usize).into()..(ptr_range.end as usize).into()
@@ -191,36 +187,36 @@ fn this_boot_region() -> impl Iterator<Item = BootRegion> {
         BootRegion::new(
             section_phys!(_stext, _etext),
             c".text",
-            AccessSetting::Read | AccessSetting::Execute,
+            AccessSetting::ReadExecute,
             CacheSetting::Normal,
             BootMemoryKind::KImage,
         ),
         BootRegion::new(
             section_phys!(_srodata, _erodata),
             c".rodata",
-            AccessSetting::Read | AccessSetting::Execute,
+            AccessSetting::ReadExecute,
             CacheSetting::Normal,
             BootMemoryKind::KImage,
         ),
         BootRegion::new(
             section_phys!(_sdata, _edata),
             c".data",
-            AccessSetting::Read | AccessSetting::Write | AccessSetting::Execute,
+            AccessSetting::ReadWriteExecute,
             CacheSetting::Normal,
             BootMemoryKind::KImage,
         ),
         BootRegion::new(
             section_phys!(__bss_start, __bss_stop),
             c".bss",
-            AccessSetting::Read | AccessSetting::Write | AccessSetting::Execute,
+            AccessSetting::ReadWriteExecute,
             CacheSetting::Normal,
             BootMemoryKind::KImage,
         ),
         BootRegion::new(
             slice_to_phys_range(stack_cpu0()),
             c".stack0",
-            AccessSetting::Read | AccessSetting::Write | AccessSetting::Execute,
-            CacheSetting::Normal,
+            AccessSetting::ReadWriteExecute,
+            CacheSetting::PerCpu,
             BootMemoryKind::KImage,
         ),
     ]

@@ -11,12 +11,15 @@ use super::{
 };
 pub use arrayvec::ArrayVec;
 use buddy_system_allocator::Heap;
+use memory_addr::MemoryAddr;
 
 pub use crate::hal_al::mmu::{AccessSetting, CacheSetting};
 use crate::{
     globals::{self, cpu_inited, global_val},
+    hal_al::mmu::PageTable,
     io::print::*,
-    platform, println,
+    platform::{self, mmu::page_size},
+    println,
 };
 
 // mod paging;
@@ -24,7 +27,8 @@ use crate::{
 // pub use paging::init_table;
 // pub use paging::iomap;
 
-pub const LINER_OFFSET: usize = 0xffff_f000_0000_0000;
+// pub const LINER_OFFSET: usize = 0xffff_f000_0000_0000;
+pub const LINER_OFFSET: usize = 0xffff_9000_0000_0000;
 static TEXT_OFFSET: OnceStatic<usize> = OnceStatic::new(0);
 static IS_MMU_ENABLED: OnceStatic<bool> = OnceStatic::new(false);
 
@@ -51,21 +55,31 @@ pub fn get_text_va_offset() -> usize {
     *TEXT_OFFSET.get_ref()
 }
 
-// struct PageHeap(Heap<32>);
+pub(crate) fn init() {
+    println!("init mmu...");
+    let table = new_boot_table().unwrap();
+    platform::mmu::switch_table(table);
+}
 
-// impl page_table_generic::Access for PageHeap {
-//     fn va_offset(&self) -> usize {
-//         0
-//     }
+struct PageHeap(Heap<32>);
 
-//     unsafe fn alloc(&mut self, layout: Layout) -> Option<NonNull<u8>> {
-//         self.0.alloc(layout).ok()
-//     }
+impl page_table_generic::Access for PageHeap {
+    unsafe fn alloc(&mut self, layout: Layout) -> Option<page_table_generic::PhysAddr> {
+        self.0
+            .alloc(layout)
+            .ok()
+            .map(|ptr| (ptr.as_ptr() as usize).into())
+    }
 
-//     unsafe fn dealloc(&mut self, ptr: NonNull<u8>, layout: core::alloc::Layout) {
-//         self.0.dealloc(ptr, layout);
-//     }
-// }
+    unsafe fn dealloc(&mut self, ptr: page_table_generic::PhysAddr, layout: Layout) {
+        self.0
+            .dealloc(unsafe { NonNull::new_unchecked(ptr.raw() as _) }, layout);
+    }
+
+    fn phys_to_mut(&self, phys: page_table_generic::PhysAddr) -> *mut u8 {
+        phys.raw() as *mut u8
+    }
+}
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
@@ -77,6 +91,8 @@ pub struct BootRegion {
     pub cache: CacheSetting,
     pub kind: BootMemoryKind,
 }
+
+unsafe impl Send for BootRegion {}
 
 impl BootRegion {
     pub fn new(
@@ -132,6 +148,7 @@ pub enum BootMemoryKind {
     KImage,
     Reserved,
     Ram,
+    Mmio,
 }
 
 #[repr(u8)]
@@ -165,56 +182,98 @@ impl<T> From<Virt<T>> for Phys<T> {
     }
 }
 const MB: usize = 1024 * 1024;
-// pub fn new_boot_table() -> Result<usize, &'static str> {
-//     let mut access = PageHeap(Heap::empty());
-//     let main_mem = global_val().main_memory.clone();
+pub fn new_boot_table() -> Result<PageTable, &'static str> {
+    let mut access = PageHeap(Heap::empty());
+    let main_mem = super::MAIN_RAM.wait();
 
-//     let tmp_end = main_mem.end;
-//     let tmp_size = tmp_end - main_mem.start.align_up(MB);
-//     let tmp_pt = (main_mem.end - tmp_size / 2).raw();
+    let tmp_end = main_mem.end;
+    let tmp_size = tmp_end - main_mem.start.align_up(MB);
+    let tmp_pt = (main_mem.end - tmp_size / 2).raw();
 
-//     println!("page table allocator {:#x}, {:#x}", tmp_pt, tmp_end.raw());
-//     unsafe { access.0.add_to_heap(tmp_pt, tmp_end.raw()) };
+    println!("page table allocator {:#x}, {:#x}", tmp_pt, tmp_end.raw());
+    unsafe { access.0.add_to_heap(tmp_pt, tmp_end.raw()) };
 
-//     let mut table =
-//         PageTableRef::create_empty(&mut access).map_err(|_| "page table allocator no memory")?;
+    let access = &mut access;
 
-//     for memory in platform::phys_memorys() {
-//         let region = BootRegion::new(
-//             memory,
-//             c"memory",
-//             AccessSetting::Read | AccessSetting::Write | AccessSetting::Execute,
-//             CacheSetting::Normal,
-//             RegionKind::Other,
-//         );
-//         map_region(&mut table, 0, &region, &mut access);
-//     }
+    let table = platform::mmu::new_table(access).unwrap();
 
-//     for region in boot_regions() {
-//         map_region(&mut table, region.va_offset(), region, &mut access);
-//     }
+    println!("map boot regions...");
 
-//     let main_memory = BootRegion::new(
-//         global_val().main_memory.clone(),
-//         c"main memory",
-//         AccessSetting::Read | AccessSetting::Write | AccessSetting::Execute,
-//         CacheSetting::Normal,
-//         RegionKind::Other,
-//     );
+    for region in platform::boot_regions() {
+        let offset = match region.kind {
+            BootMemoryKind::KImage => platform::mmu::kimage_va_offset(),
+            _ => LINER_OFFSET,
+        };
 
-//     map_region(
-//         &mut table,
-//         main_memory.va_offset(),
-//         &main_memory,
-//         &mut access,
-//     );
+        let pa_start = region.range.start.align_down(page_size());
+        let va_start: Virt<u8> = (pa_start + offset).raw().into();
+        let pa_end = region.range.end.align_up(page_size());
 
-//     let table_addr = table.paddr();
+        let size = pa_end - pa_start;
+        println!(
+            "  [{:<16}] [{:#x}, {:#x}) -> [{:#x}, {:#x}),\t{:?},\t{:?}",
+            region.name(),
+            va_start.raw(),
+            va_start.raw() + size,
+            pa_start.raw(),
+            pa_start.raw() + size,
+            region.access,
+            region.cache
+        );
 
-//     println!("Table: {table_addr:#x}");
+        if let Err(e) = platform::mmu::map_range(
+            table,
+            access,
+            region.name(),
+            va_start,
+            pa_start,
+            size,
+            region.access,
+            region.cache,
+        ) {
+            println!("map error: {e:?}");
+        }
+    }
 
-//     Ok(table_addr)
-// }
+    // let mut table =
+    //     PageTableRef::create_empty(&mut access).map_err(|_| "page table allocator no memory")?;
+
+    // for memory in platform::phys_memorys() {
+    //     let region = BootRegion::new(
+    //         memory,
+    //         c"memory",
+    //         AccessSetting::Read | AccessSetting::Write | AccessSetting::Execute,
+    //         CacheSetting::Normal,
+    //         RegionKind::Other,
+    //     );
+    //     map_region(&mut table, 0, &region, &mut access);
+    // }
+
+    // for region in boot_regions() {
+    //     map_region(&mut table, region.va_offset(), region, &mut access);
+    // }
+
+    // let main_memory = BootRegion::new(
+    //     global_val().main_memory.clone(),
+    //     c"main memory",
+    //     AccessSetting::Read | AccessSetting::Write | AccessSetting::Execute,
+    //     CacheSetting::Normal,
+    //     RegionKind::Other,
+    // );
+
+    // map_region(
+    //     &mut table,
+    //     main_memory.va_offset(),
+    //     &main_memory,
+    //     &mut access,
+    // );
+
+    // let table_addr = table.paddr();
+
+    println!("Table: {table:?}");
+
+    Ok(table)
+}
 
 // fn map_region(
 //     table: &mut paging::PageTableRef<'_>,

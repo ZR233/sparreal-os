@@ -1,22 +1,24 @@
 use core::fmt::Debug;
 
+pub use page_table_generic::{Access, PagingError, PhysAddr};
+
 pub use crate::mem::{Phys, Virt};
 
-bitflags::bitflags! {
-    /// Generic page table entry flags that indicate the corresponding mapped
-    /// memory region permissions and attributes.
-    #[repr(transparent)]
-    #[derive(Clone, Copy, PartialEq, Eq)]
-    pub struct AccessSetting: u8 {
-        const Read = 1 << 0;
-        const Write = 1 << 1;
-        const Execute = 1 << 2;
-    }
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum AccessSetting {
+    Read,
+    ReadWrite,
+    ReadExecute,
+    ReadWriteExecute,
 }
-
-impl Debug for AccessSetting {
+impl core::fmt::Debug for AccessSetting {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        bitflags::parser::to_writer_truncate(self, f)
+        match self {
+            AccessSetting::Read => write!(f, "R--"),
+            AccessSetting::ReadWrite => write!(f, "RW-"),
+            AccessSetting::ReadExecute => write!(f, "R-X"),
+            AccessSetting::ReadWriteExecute => write!(f, "RWX"),
+        }
     }
 }
 
@@ -29,14 +31,13 @@ pub enum CacheSetting {
     /// Non-cacheable memory, strongly ordered
     NonCacheable,
     /// Per-CPU cacheable
-    PerCpuCacheable,
+    PerCpu,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PagingError {
-    InvalidAddress,
-    NoMemory,
-    AlreadyMapped,
+#[derive(Debug, Clone, Copy)]
+pub struct PageTable {
+    pub id: usize,
+    pub addr: Phys<u8>,
 }
 
 #[trait_ffi::def_extern_trait(not_def_impl)]
@@ -44,15 +45,18 @@ pub trait Mmu {
     /// Called once after memory management is ready.
     fn setup();
     fn page_size() -> usize;
+    fn kimage_va_offset() -> usize;
 
-    fn new_table() -> Phys<u8>;
-    fn release_table(table_addr: Phys<u8>);
-    fn current_table_addr() -> Phys<u8>;
-    fn switch_table(new_table_addr: Phys<u8>);
+    fn new_table(alloc: &mut dyn Access) -> Result<PageTable, PagingError>;
+    fn release_table(table: PageTable);
+    fn current_table() -> PageTable;
+    fn switch_table(new_table: PageTable);
     fn map_range(
-        table_addr: Phys<u8>,
+        table: PageTable,
+        alloc: &mut dyn Access,
+        name: &'static str,
         va_start: Virt<u8>,
-        pa_start: Virt<u8>,
+        pa_start: Phys<u8>,
         size: usize,
         access: AccessSetting,
         cache: CacheSetting,
