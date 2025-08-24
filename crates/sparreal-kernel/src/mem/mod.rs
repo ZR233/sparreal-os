@@ -16,7 +16,7 @@ use spin::{Mutex, Once};
 use crate::{
     globals::global_val,
     mem::{
-        mmu::{BootMemoryKind, BootRegion},
+        mmu::{BootMemoryKind, BootRegion, LINER_OFFSET},
         once::OnceStatic,
     },
     platform::{self, kstack_size},
@@ -38,6 +38,7 @@ static ALLOCATOR: KAllocator = KAllocator {
 };
 
 static MAIN_RAM: Once<Range<Phys<u8>>> = Once::new();
+static mut TMP_PAGE_ALLOC_ADDR: usize = 0;
 
 pub struct KAllocator {
     pub(crate) inner: Mutex<Heap<32>>,
@@ -92,27 +93,24 @@ pub(crate) fn init() {
     let range = start..main.range.end;
     MAIN_RAM.call_once(|| range.clone());
 
-    mmu::init();
+    mmu::init_with_tmp_table();
 
-    let mut start = VirtAddr::from(start.raw());
-    let mut end = VirtAddr::from(range.end.raw());
+    let mut start = VirtAddr::from(start.raw() + LINER_OFFSET);
+    let mut end = VirtAddr::from(range.end.raw() + LINER_OFFSET);
 
-    // let table = platform::mmu::current_table_addr();
-    // platform::mmu::map_range(
-    //     table,
-    //     alloc,
-    //     start,
-    //     range.start,
-    //     range.end.raw() - range.start.raw(),
-    //     main.access,
-    //     main.cache,
-    // );
+    unsafe {
+        if TMP_PAGE_ALLOC_ADDR != 0 {
+            end = VirtAddr::from(TMP_PAGE_ALLOC_ADDR + LINER_OFFSET);
+        }
+    }
 
     println!("heap add memory [{}, {})", start, end);
     #[cfg(target_os = "none")]
     ALLOCATOR.add_to_heap(unsafe { &mut *slice_from_raw_parts_mut(start.into(), end - start) });
 
     println!("heap initialized");
+
+    mmu::init();
 }
 
 fn find_main_memory() -> Option<BootRegion> {

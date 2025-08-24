@@ -12,12 +12,15 @@ use super::{
 pub use arrayvec::ArrayVec;
 use buddy_system_allocator::Heap;
 use memory_addr::MemoryAddr;
+use page_table_generic::Access;
+use spin::MutexGuard;
 
 pub use crate::hal_al::mmu::{AccessSetting, CacheSetting};
 use crate::{
     globals::{self, cpu_inited, global_val},
     hal_al::mmu::PageTable,
     io::print::*,
+    mem::{ALLOCATOR, MAIN_RAM, TMP_PAGE_ALLOC_ADDR},
     platform::{self, mmu::page_size},
     println,
 };
@@ -55,10 +58,26 @@ pub fn get_text_va_offset() -> usize {
     *TEXT_OFFSET.get_ref()
 }
 
-pub(crate) fn init() {
-    println!("init mmu...");
+pub(crate) fn init_with_tmp_table() {
+    println!("init tmp page table...");
     let table = new_boot_table().unwrap();
     platform::mmu::switch_table(table);
+}
+
+pub(crate) fn init() {
+    println!("init page table...");
+
+    let table = new_table().unwrap();
+    platform::mmu::switch_table(table);
+
+    unsafe {
+        let start = TMP_PAGE_ALLOC_ADDR as *mut u8;
+        let end = MAIN_RAM.wait().end.raw() as *mut u8;
+        let ram = core::slice::from_raw_parts_mut(start, end as usize - start as usize);
+
+        ALLOCATOR.add_to_heap(ram);
+        println!("expand heap [{:#x}, {:#x})", start as usize, end as usize);
+    }
 }
 
 struct PageHeap(Heap<32>);
@@ -182,7 +201,8 @@ impl<T> From<Virt<T>> for Phys<T> {
     }
 }
 const MB: usize = 1024 * 1024;
-pub fn new_boot_table() -> Result<PageTable, &'static str> {
+
+fn new_boot_table() -> Result<PageTable, &'static str> {
     let mut access = PageHeap(Heap::empty());
     let main_mem = super::MAIN_RAM.wait();
 
@@ -190,11 +210,20 @@ pub fn new_boot_table() -> Result<PageTable, &'static str> {
     let tmp_size = tmp_end - main_mem.start.align_up(MB);
     let tmp_pt = (main_mem.end - tmp_size / 2).raw();
 
+    unsafe { super::TMP_PAGE_ALLOC_ADDR = tmp_pt };
+
     println!("page table allocator {:#x}, {:#x}", tmp_pt, tmp_end.raw());
     unsafe { access.0.add_to_heap(tmp_pt, tmp_end.raw()) };
+    new_table_with_access(&mut access)
+}
 
-    let access = &mut access;
+fn new_table() -> Result<PageTable, &'static str> {
+    let mut g = ALLOCATOR.inner.lock();
+    let mut access = HeapGuard(g);
+    new_table_with_access(&mut access)
+}
 
+fn new_table_with_access(access: &mut dyn Access) -> Result<PageTable, &'static str> {
     let table = platform::mmu::new_table(access).unwrap();
 
     println!("map boot regions...");
@@ -273,6 +302,28 @@ pub fn new_boot_table() -> Result<PageTable, &'static str> {
     println!("Table: {table:?}");
 
     Ok(table)
+}
+
+struct HeapGuard<'a>(MutexGuard<'a, Heap<32>>);
+
+impl Access for HeapGuard<'_> {
+    unsafe fn alloc(&mut self, layout: Layout) -> Option<page_table_generic::PhysAddr> {
+        self.0
+            .alloc(layout)
+            .ok()
+            .map(|ptr| (ptr.as_ptr() as usize - LINER_OFFSET).into())
+    }
+
+    unsafe fn dealloc(&mut self, ptr: page_table_generic::PhysAddr, layout: Layout) {
+        self.0.dealloc(
+            unsafe { NonNull::new_unchecked((ptr.raw() + LINER_OFFSET) as _) },
+            layout,
+        );
+    }
+
+    fn phys_to_mut(&self, phys: page_table_generic::PhysAddr) -> *mut u8 {
+        (phys.raw() + LINER_OFFSET) as *mut u8
+    }
 }
 
 // fn map_region(

@@ -162,25 +162,25 @@ fn slice_to_phys_range(data: &[u8]) -> Range<PhysAddr> {
     (ptr_range.start as usize).into()..(ptr_range.end as usize).into()
 }
 
-pub fn fdt_addr() -> Option<PhysAddr> {
-    let len = FDT_LEN.load(Ordering::Relaxed);
-    if len != 0 {
-        let fdt_addr = FDT_ADDR.load(Ordering::Relaxed);
-        Some(fdt_addr.into())
-    } else {
-        None
-    }
-}
+// pub fn fdt_addr() -> Option<PhysAddr> {
+//     let len = FDT_LEN.load(Ordering::Relaxed);
+//     if len != 0 {
+//         let fdt_addr = FDT_ADDR.load(Ordering::Relaxed);
+//         Some(fdt_addr.into())
+//     } else {
+//         None
+//     }
+// }
 
-fn fdt_addr_range() -> Option<Range<PhysAddr>> {
-    let len = FDT_LEN.load(Ordering::Relaxed);
-    if len != 0 {
-        let fdt_addr = FDT_ADDR.load(Ordering::Relaxed);
-        Some(fdt_addr.align_down_4k().into()..(fdt_addr + len.align_up_4k()).into())
-    } else {
-        None
-    }
-}
+// fn fdt_addr_range() -> Option<Range<PhysAddr>> {
+//     let len = FDT_LEN.load(Ordering::Relaxed);
+//     if len != 0 {
+//         let fdt_addr = FDT_ADDR.load(Ordering::Relaxed);
+//         Some(fdt_addr.align_down_4k().into()..(fdt_addr + len.align_up_4k()).into())
+//     } else {
+//         None
+//     }
+// }
 
 fn this_boot_region() -> impl Iterator<Item = BootRegion> {
     [
