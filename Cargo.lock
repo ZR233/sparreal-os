@@ -2369,6 +2369,7 @@ dependencies = [
  "arrayvec",
  "buddy_system_allocator",
  "fdt-parser",
+ "heapless 0.9.1",
  "log",
  "memory_addr",
  "numeric-enum-macro",

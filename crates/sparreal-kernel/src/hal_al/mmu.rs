@@ -1,3 +1,5 @@
+use core::fmt::Debug;
+
 pub use crate::mem::{Phys, Virt};
 
 bitflags::bitflags! {
@@ -9,6 +11,12 @@ bitflags::bitflags! {
         const Read = 1 << 0;
         const Write = 1 << 1;
         const Execute = 1 << 2;
+    }
+}
+
+impl Debug for AccessSetting {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        bitflags::parser::to_writer_truncate(self, f)
     }
 }
 

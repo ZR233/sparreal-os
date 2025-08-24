@@ -68,14 +68,14 @@ pub fn get_text_va_offset() -> usize {
 // }
 
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct BootRegion {
     // 链接地址
     pub range: PhysCRange,
     pub name: *const u8,
     pub access: AccessSetting,
     pub cache: CacheSetting,
-    pub kind: RegionKind,
+    pub kind: BootMemoryKind,
 }
 
 impl BootRegion {
@@ -84,7 +84,7 @@ impl BootRegion {
         name: &'static CStr,
         access: AccessSetting,
         cache: CacheSetting,
-        kind: RegionKind,
+        kind: BootMemoryKind,
     ) -> Self {
         Self {
             range: range.into(),
@@ -101,7 +101,7 @@ impl BootRegion {
         name: &'static CStr,
         access: AccessSetting,
         cache: CacheSetting,
-        kind: RegionKind,
+        kind: BootMemoryKind,
     ) -> Self {
         Self::new(start..start + len, name, access, cache, kind)
     }
@@ -110,19 +110,28 @@ impl BootRegion {
         unsafe { CStr::from_ptr(self.name as _).to_str().unwrap() }
     }
 
-    pub fn va_offset(&self) -> usize {
-        match self.kind {
-            RegionKind::Stack => {
-                if cpu_inited() {
-                    self.kind.va_offset()
-                } else {
-                    // cpu0
-                    STACK_BOTTOM - self.range.start.raw()
-                }
-            }
-            _ => self.kind.va_offset(),
-        }
-    }
+    // pub fn va_offset(&self) -> usize {
+    //     match self.kind {
+    //         RegionKind::Stack => {
+    //             if cpu_inited() {
+    //                 self.kind.va_offset()
+    //             } else {
+    //                 // cpu0
+    //                 STACK_BOTTOM - self.range.start.raw()
+    //             }
+    //         }
+    //         _ => self.kind.va_offset(),
+    //     }
+    // }
+}
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy)]
+pub enum BootMemoryKind {
+    /// map offset as kv_offset
+    KImage,
+    Reserved,
+    Ram,
 }
 
 #[repr(u8)]

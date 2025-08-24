@@ -1,6 +1,7 @@
 use alloc::{string::String, vec::Vec};
 use arrayvec::ArrayVec;
 use core::hint::spin_loop;
+use core::iter;
 use core::{ffi::CStr, fmt::Display, ops::Range};
 use log::error;
 use rdrive::driver;
@@ -9,9 +10,8 @@ use fdt::Fdt;
 use rdrive::register::DriverRegister;
 
 use crate::globals::global_val;
-use crate::mem::region::boot_regions;
 use crate::mem::PhysAddr;
-use crate::mem::mmu::{AccessSetting, BootRegion, CacheSetting, RegionKind};
+use crate::mem::mmu::BootRegion;
 use crate::{hal_al, platform};
 
 pub mod mmu {
@@ -123,31 +123,43 @@ pub fn memory_main_available(
     Ok(start..main_memory.end)
 }
 
-pub fn regsions() -> Vec<BootRegion> {
-    let mut ret = boot_regions().to_vec();
+pub fn boot_regions() -> impl Iterator<Item = BootRegion> {
+    let mut index: usize = 0;
 
-    let main_available = memory_main_available(&global_val().platform_info).unwrap();
-    ret.push(BootRegion::new(
-        main_available.clone(),
-        c"main mem",
-        AccessSetting::Read | AccessSetting::Write | AccessSetting::Execute,
-        CacheSetting::Normal,
-        RegionKind::Other,
-    ));
-
-    for memory in phys_memorys() {
-        if memory.contains(&main_available.start) {
-            continue;
+    iter::from_fn(move || {
+        let r = platform::boot_region_by_index(index);
+        if r.is_some() {
+            index += 1;
         }
+        r
+    })
+}
 
-        ret.push(BootRegion::new(
-            memory,
-            c"memory",
-            AccessSetting::Read | AccessSetting::Write | AccessSetting::Execute,
-            CacheSetting::Normal,
-            RegionKind::Other,
-        ));
-    }
+pub fn regsions() -> Vec<BootRegion> {
+    let mut ret = boot_regions().collect::<Vec<_>>();
+
+    // let main_available = memory_main_available(&global_val().platform_info).unwrap();
+    // ret.push(BootRegion::new(
+    //     main_available.clone(),
+    //     c"main mem",
+    //     AccessSetting::Read | AccessSetting::Write | AccessSetting::Execute,
+    //     CacheSetting::Normal,
+    //     RegionKind::Other,
+    // ));
+
+    // for memory in phys_memorys() {
+    //     if memory.contains(&main_available.start) {
+    //         continue;
+    //     }
+
+    //     ret.push(BootRegion::new(
+    //         memory,
+    //         c"memory",
+    //         AccessSetting::Read | AccessSetting::Write | AccessSetting::Execute,
+    //         CacheSetting::Normal,
+    //         RegionKind::Other,
+    //     ));
+    // }
 
     ret
 }

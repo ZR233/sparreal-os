@@ -16,7 +16,6 @@ pub mod io;
 
 pub mod async_std;
 pub mod driver;
-pub mod hal;
 pub mod hal_al;
 pub mod irq;
 mod lang_items;

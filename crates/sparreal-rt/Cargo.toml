@@ -28,6 +28,7 @@ rgb = "0.8"
 sparreal-kernel = {workspace = true, features = ["mmu"]}
 sparreal-macros = {workspace = true}
 spin = "0.10"
+heapless = "0.9"
 
 [target.'cfg(target_arch = "aarch64")'.dependencies]
 aarch64-cpu = "10.0"

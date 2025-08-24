@@ -1,4 +1,3 @@
-use arrayvec::ArrayVec;
 use core::ops::Range;
 use core::ptr::{NonNull, slice_from_raw_parts};
 use core::sync::atomic::{AtomicUsize, Ordering};
@@ -6,7 +5,13 @@ use fdt_parser::Fdt;
 use memory_addr::MemoryAddr;
 use somehal::{BootInfo, MemoryRegionKind};
 use sparreal_kernel::mem::mmu::*;
+use sparreal_kernel::mem::once::OnceStatic;
 pub use sparreal_kernel::mem::*;
+
+static BOOT_REGIONS: OnceStatic<heapless::Vec<BootRegion, 64>> =
+    OnceStatic::new(heapless::Vec::new());
+
+static mut VA_OFFSET: usize = 0;
 
 static FDT_ADDR: AtomicUsize = AtomicUsize::new(0);
 static FDT_LEN: AtomicUsize = AtomicUsize::new(0);
@@ -16,15 +21,90 @@ static mut BOOT_RSV_END: usize = 0;
 
 pub fn setup_boot_args(args: &BootInfo) {
     set_fdt_addr(args.fdt);
-    let rsv = args
-        .memory_regions
-        .iter()
-        .find(|o| matches!(o.kind, MemoryRegionKind::Bootloader))
-        .unwrap();
     unsafe {
-        BOOT_RSV_START = rsv.start;
-        BOOT_RSV_END = rsv.end.align_up_4k();
+        VA_OFFSET = args.kcode_offset();
     }
+    let mut regions = heapless::Vec::<BootRegion, 64>::new();
+
+    for region in args.memory_regions.iter() {
+        let name;
+        let kind;
+
+        match region.kind {
+            MemoryRegionKind::Ram => {
+                name = c"ram";
+                kind = BootMemoryKind::Ram;
+            }
+            MemoryRegionKind::Reserved => {
+                name = c"reserved";
+                kind = BootMemoryKind::Reserved;
+            }
+            MemoryRegionKind::Bootloader => {
+                name = c"embedded loader";
+                kind = BootMemoryKind::KImage;
+            }
+            MemoryRegionKind::UnknownUefi(_) => {
+                name = c"uefi";
+                kind = BootMemoryKind::Reserved;
+            }
+            MemoryRegionKind::UnknownBios(_) => {
+                name = c"bios";
+                kind = BootMemoryKind::Reserved;
+            }
+            _ => {
+                name = c"reserved";
+                kind = BootMemoryKind::Reserved;
+            }
+        }
+        regions
+            .push(BootRegion::new(
+                Phys::from(region.start)..Phys::from(region.end),
+                name,
+                AccessSetting::Read | AccessSetting::Write | AccessSetting::Execute,
+                CacheSetting::Normal,
+                kind,
+            ))
+            .expect("boot regions overflow");
+    }
+
+    for region in this_boot_region() {
+        regions.push(region).expect("boot regions overflow");
+    }
+
+    regions.sort_by(|a, b| a.range.start.raw().cmp(&b.range.start.raw()));
+
+    unsafe { OnceStatic::set(&BOOT_REGIONS, regions) };
+
+    somehal::println!("boot regions:");
+
+    for region in boot_regions() {
+        somehal::println!(
+            "  [{:<16}] {:?} {:?}\t{:?}\t{:?}",
+            region.name(),
+            region.range,
+            region.kind,
+            region.cache,
+            region.access,
+        );
+    }
+
+    // let rsv = args
+    //     .memory_regions
+    //     .iter()
+    //     .find(|o| matches!(o.kind, MemoryRegionKind::Bootloader))
+    //     .unwrap();
+    // unsafe {
+    //     BOOT_RSV_START = rsv.start;
+    //     BOOT_RSV_END = rsv.end.align_up_4k();
+    // }
+}
+
+fn va_offset() -> usize {
+    unsafe { VA_OFFSET }
+}
+
+pub(crate) fn boot_regions() -> &'static [BootRegion] {
+    BOOT_REGIONS.as_slice()
 }
 
 fn set_fdt_addr(ptr: Option<NonNull<u8>>) {
@@ -48,8 +128,8 @@ macro_rules! section_phys {
                 fn $b();
                 fn $e();
             }
-            let start = $b as *const u8 as usize - get_text_va_offset();
-            let end = $e as *const u8 as usize - get_text_va_offset();
+            let start = $b as *const u8 as usize - va_offset();
+            let end = $e as *const u8 as usize - va_offset();
             PhysAddr::new(start)..PhysAddr::new(end)
         }
     };
@@ -62,15 +142,15 @@ unsafe extern "C" {
     fn _erodata();
     fn _sdata();
     fn _edata();
-    // fn _sbss();
-    // fn _ebss();
+    fn __bss_start();
+    fn __bss_stop();
     fn __cpu0_stack_top();
     fn __cpu0_stack();
 }
 
 pub fn stack_cpu0() -> &'static [u8] {
-    let start = __cpu0_stack as *const u8 as usize - get_text_va_offset();
-    let end = __cpu0_stack_top as *const u8 as usize - get_text_va_offset();
+    let start = __cpu0_stack as *const u8 as usize - va_offset();
+    let end = __cpu0_stack_top as *const u8 as usize - va_offset();
     unsafe { &*slice_from_raw_parts(start as *mut u8, end - start) }
 }
 
@@ -106,72 +186,113 @@ fn fdt_addr_range() -> Option<Range<PhysAddr>> {
     }
 }
 
-pub fn rsv_regions<const N: usize>() -> ArrayVec<BootRegion, N> {
-    let mut rsv_regions = ArrayVec::<BootRegion, N>::new();
-    rsv_regions.push(BootRegion::new(
-        section_phys!(_stext, _etext),
-        c".text",
-        AccessSetting::Read | AccessSetting::Execute,
-        CacheSetting::Normal,
-        RegionKind::KImage,
-    ));
-
-    rsv_regions.push(BootRegion::new(
-        section_phys!(_srodata, _erodata),
-        c".rodata",
-        AccessSetting::Read | AccessSetting::Execute,
-        CacheSetting::Normal,
-        RegionKind::KImage,
-    ));
-
-    rsv_regions.push(BootRegion::new(
-        section_phys!(_sdata, _edata),
-        c".data",
-        AccessSetting::Read | AccessSetting::Write | AccessSetting::Execute,
-        CacheSetting::Normal,
-        RegionKind::KImage,
-    ));
-
-    rsv_regions.push(BootRegion::new(
-        section_phys!(__bss_start, __bss_stop),
-        c".bss",
-        AccessSetting::Read | AccessSetting::Write | AccessSetting::Execute,
-        CacheSetting::Normal,
-        RegionKind::KImage,
-    ));
-
-    rsv_regions.push(BootRegion::new(
-        slice_to_phys_range(stack_cpu0()),
-        c".stack",
-        AccessSetting::Read | AccessSetting::Write | AccessSetting::Execute,
-        CacheSetting::Normal,
-        RegionKind::Stack,
-    ));
-
-    if let Some(fdt) = fdt_addr_range() {
-        rsv_regions.push(BootRegion::new(
-            fdt,
-            c"fdt",
-            AccessSetting::Read,
+fn this_boot_region() -> impl Iterator<Item = BootRegion> {
+    [
+        BootRegion::new(
+            section_phys!(_stext, _etext),
+            c".text",
+            AccessSetting::Read | AccessSetting::Execute,
             CacheSetting::Normal,
-            RegionKind::Other,
-        ));
-    }
-
-    // unsafe {
-    //     if BOOT_RSV_START != 0 && BOOT_RSV_END != 0 {
-    //         rsv_regions.push(BootRegion::new(
-    //             PhysAddr::new(BOOT_RSV_START)..PhysAddr::new(BOOT_RSV_END),
-    //             c"boot_rsv",
-    //             AccessSetting::Read | AccessSetting::Write,
-    //             CacheSetting::Normal,
-    //             RegionKind::KImage,
-    //         ));
-    //     }
-    // }
-
-    rsv_regions
+            BootMemoryKind::KImage,
+        ),
+        BootRegion::new(
+            section_phys!(_srodata, _erodata),
+            c".rodata",
+            AccessSetting::Read | AccessSetting::Execute,
+            CacheSetting::Normal,
+            BootMemoryKind::KImage,
+        ),
+        BootRegion::new(
+            section_phys!(_sdata, _edata),
+            c".data",
+            AccessSetting::Read | AccessSetting::Write | AccessSetting::Execute,
+            CacheSetting::Normal,
+            BootMemoryKind::KImage,
+        ),
+        BootRegion::new(
+            section_phys!(__bss_start, __bss_stop),
+            c".bss",
+            AccessSetting::Read | AccessSetting::Write | AccessSetting::Execute,
+            CacheSetting::Normal,
+            BootMemoryKind::KImage,
+        ),
+        BootRegion::new(
+            slice_to_phys_range(stack_cpu0()),
+            c".stack0",
+            AccessSetting::Read | AccessSetting::Write | AccessSetting::Execute,
+            CacheSetting::Normal,
+            BootMemoryKind::KImage,
+        ),
+    ]
+    .into_iter()
 }
+
+// pub fn rsv_regions<const N: usize>() -> ArrayVec<BootRegion, N> {
+//     let mut rsv_regions = ArrayVec::<BootRegion, N>::new();
+//     rsv_regions.push(BootRegion::new(
+//         section_phys!(_stext, _etext),
+//         c".text",
+//         AccessSetting::Read | AccessSetting::Execute,
+//         CacheSetting::Normal,
+//         RegionKind::KImage,
+//     ));
+
+//     rsv_regions.push(BootRegion::new(
+//         section_phys!(_srodata, _erodata),
+//         c".rodata",
+//         AccessSetting::Read | AccessSetting::Execute,
+//         CacheSetting::Normal,
+//         RegionKind::KImage,
+//     ));
+
+//     rsv_regions.push(BootRegion::new(
+//         section_phys!(_sdata, _edata),
+//         c".data",
+//         AccessSetting::Read | AccessSetting::Write | AccessSetting::Execute,
+//         CacheSetting::Normal,
+//         RegionKind::KImage,
+//     ));
+
+//     rsv_regions.push(BootRegion::new(
+//         section_phys!(__bss_start, __bss_stop),
+//         c".bss",
+//         AccessSetting::Read | AccessSetting::Write | AccessSetting::Execute,
+//         CacheSetting::Normal,
+//         RegionKind::KImage,
+//     ));
+
+//     rsv_regions.push(BootRegion::new(
+//         slice_to_phys_range(stack_cpu0()),
+//         c".stack",
+//         AccessSetting::Read | AccessSetting::Write | AccessSetting::Execute,
+//         CacheSetting::Normal,
+//         RegionKind::Stack,
+//     ));
+
+//     if let Some(fdt) = fdt_addr_range() {
+//         rsv_regions.push(BootRegion::new(
+//             fdt,
+//             c"fdt",
+//             AccessSetting::Read,
+//             CacheSetting::Normal,
+//             RegionKind::Other,
+//         ));
+//     }
+
+//     // unsafe {
+//     //     if BOOT_RSV_START != 0 && BOOT_RSV_END != 0 {
+//     //         rsv_regions.push(BootRegion::new(
+//     //             PhysAddr::new(BOOT_RSV_START)..PhysAddr::new(BOOT_RSV_END),
+//     //             c"boot_rsv",
+//     //             AccessSetting::Read | AccessSetting::Write,
+//     //             CacheSetting::Normal,
+//     //             RegionKind::KImage,
+//     //         ));
+//     //     }
+//     // }
+
+//     rsv_regions
+// }
 
 pub fn driver_registers() -> &'static [u8] {
     unsafe extern "C" {

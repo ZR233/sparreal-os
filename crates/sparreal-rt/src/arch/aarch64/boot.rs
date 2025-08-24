@@ -10,9 +10,12 @@ use crate::mem;
 
 use super::debug;
 
+
+
 #[somehal::entry]
 fn main(args: &BootInfo) -> ! {
     debug::setup_by_fdt(args.fdt, phys_to_virt);
+    mem::setup_boot_args(args);
     hal_al::run::run();
 
     // sp_fixed_entry(args)

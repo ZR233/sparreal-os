@@ -13,7 +13,7 @@ use sparreal_kernel::{
     irq::IrqParam,
     mem::{
         Phys, Virt,
-        mmu::{AccessSetting, BootRegion, CacheSetting, RegionKind},
+        mmu::{AccessSetting, BootMemoryKind, BootRegion, CacheSetting, RegionKind},
     },
     task::TaskControlBlock,
 };
@@ -96,23 +96,7 @@ impl Hal for HalImpl {
     }
 
     fn boot_region_by_index(index: usize) -> Option<BootRegion>{
-        somehal::boot_info().memory_regions.get(index).map(|r| {
-            let kind = match r.kind {
-                somehal::MemoryRegionKind::Ram=> RegionKind::Other,
-                somehal::MemoryRegionKind::Reserved=> RegionKind::KImage,
-                somehal::MemoryRegionKind::Bootloader=> RegionKind::KImage,
-                somehal::MemoryRegionKind::UnknownUefi(_)=> RegionKind::Other,
-                somehal::MemoryRegionKind::UnknownBios(_)=> RegionKind::Other,
-                _ => RegionKind::Other,
-            };
-            BootRegion::new(
-                Phys::from( r.start)..Phys::from( r.end),
-                c"region",
-                AccessSetting::Read | AccessSetting::Write | AccessSetting::Execute,
-                CacheSetting::Normal,
-                kind,
-            )
-        })
+        crate::mem::boot_regions().get(index).cloned()
     }
 
     #[doc = " # Safety"]

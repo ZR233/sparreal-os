@@ -62,33 +62,33 @@ pub unsafe fn setup_percpu() {
 }
 
 fn add_cpu(cpu: CPUHardId, idx: usize) {
-    unsafe {
-        let id = CPUId::from(idx);
+    // unsafe {
+    //     let id = CPUId::from(idx);
 
-        let stack_bottom = if idx == 0 {
-            let region = boot_regions()
-                .into_iter()
-                .find(|o| matches!(o.kind, RegionKind::Stack))
-                .expect("stack region not found!");
+    //     let stack_bottom = if idx == 0 {
+    //         let region = boot_regions()
+    //             .into_iter()
+    //             .find(|o| matches!(o.kind, RegionKind::Stack))
+    //             .expect("stack region not found!");
 
-            region.range.start
-        } else {
-            let stack =
-                alloc::alloc::alloc(Layout::from_size_align(kstack_size(), 0x1000).unwrap());
-            PhysAddr::from(stack as usize - RegionKind::Other.va_offset())
-        };
+    //         region.range.start
+    //     } else {
+    //         let stack =
+    //             alloc::alloc::alloc(Layout::from_size_align(kstack_size(), 0x1000).unwrap());
+    //         PhysAddr::from(stack as usize - RegionKind::Other.va_offset())
+    //     };
 
-        (*PER_CPU.get()).insert(
-            cpu,
-            PerCPU {
-                irq_chips: Default::default(),
-                timer: Default::default(),
-                stack: stack_bottom..stack_bottom + kstack_size(),
-            },
-        );
-        (*HARD_TO_SOFT.get()).insert(cpu, id);
-        (*SOFT_TO_HARD.get()).insert(id, cpu);
-    }
+    //     (*PER_CPU.get()).insert(
+    //         cpu,
+    //         PerCPU {
+    //             irq_chips: Default::default(),
+    //             timer: Default::default(),
+    //             stack: stack_bottom..stack_bottom + kstack_size(),
+    //         },
+    //     );
+    //     (*HARD_TO_SOFT.get()).insert(cpu, id);
+    //     (*SOFT_TO_HARD.get()).insert(id, cpu);
+    // }
 }
 
 pub fn cpu_global() -> &'static PerCPU {

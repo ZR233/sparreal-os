@@ -12,7 +12,12 @@ use mmu::RegionKind;
 // use page_table_generic::{AccessSetting, CacheSetting};
 use spin::Mutex;
 
-use crate::{globals::global_val, platform::kstack_size, println};
+use crate::{
+    globals::global_val,
+    mem::mmu::{BootMemoryKind, BootRegion},
+    platform::{self, kstack_size},
+    println,
+};
 
 mod addr;
 mod cache;
@@ -75,6 +80,8 @@ pub fn stack_top() -> usize {
 }
 
 pub(crate) fn init_heap() {
+    let main = find_main_memory().expect("no main memory found");
+
     let main = global_val().main_memory.clone();
     let mut start = VirtAddr::from(main.start.raw() + RegionKind::Other.va_offset());
     let mut end = VirtAddr::from(main.end.raw() + RegionKind::Other.va_offset());
@@ -83,6 +90,33 @@ pub(crate) fn init_heap() {
     ALLOCATOR.add_to_heap(unsafe { &mut *slice_from_raw_parts_mut(start.into(), end - start) });
 
     println!("heap initialized");
+}
+
+fn find_main_memory() -> Option<BootRegion> {
+    let mut ram = heapless::Vec::<_, 32>::new();
+
+    println!("find main memory");
+
+    for r in platform::boot_regions() {
+        println!(
+            "  region {:?} {} {:?} {:?} {:?}",
+            r.range,
+            r.name(),
+            r.access,
+            r.cache,
+            r.kind
+        );
+    }
+
+    let mut main = None;
+
+    for region in platform::boot_regions() {
+        if matches!(region.kind, BootMemoryKind::Ram) {
+            ram.push(region).ok()?;
+        }
+    }
+
+    main
 }
 
 // pub(crate) fn init_page_and_memory() {
