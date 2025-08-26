@@ -15,6 +15,7 @@ use spin::{Mutex, Once};
 use crate::{
     globals::global_val,
     hal_al::mmu::MapConfig,
+    irq::NoIrqGuard,
     mem::{
         mmu::{AccessSetting, BootMemoryKind, BootRegion, CacheSetting, LINER_OFFSET},
         once::OnceStatic,
@@ -66,17 +67,22 @@ impl KAllocator {
 
 unsafe impl GlobalAlloc for KAllocator {
     unsafe fn alloc(&self, layout: core::alloc::Layout) -> *mut u8 {
+        let g = NoIrqGuard::new();
         if let Ok(p) = self.inner.lock().alloc(layout) {
+            drop(g);
             p.as_ptr()
         } else {
+            drop(g);
             null_mut()
         }
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: core::alloc::Layout) {
+        let g = NoIrqGuard::new();
         self.inner
             .lock()
             .dealloc(unsafe { NonNull::new_unchecked(ptr) }, layout);
+        drop(g);
     }
 }
 
