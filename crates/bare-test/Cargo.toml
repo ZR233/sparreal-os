@@ -1,3 +1,13 @@
+[package]
+authors = ["Zhourui <zrufo747@outlook.com>"]
+categories = ["development-tools", "development-tools::testing"]
+description = "A test framework for bare metal."
+keywords = ["test", "case", "testing", "testcase", "unittest"]
+license = "MPL-2.0"
+name = "bare-test"
+repository = "https://github.com/ZR233/sparreal-os/tree/main/crates/bare-test"
+version = "0.6.0"
+
 [dependencies.bare-test-macros]
 path = "../bare-test-macros"
 version = "0.2"
@@ -19,16 +29,6 @@ workspace = true
 [features]
 default = ["rt"]
 rt = ["sparreal-rt"]
-
-[package]
-authors = ["Zhourui <zrufo747@outlook.com>"]
-categories = ["development-tools", "development-tools::testing"]
-description = "A test framework for bare metal."
-keywords = ["test", "case", "testing", "testcase", "unittest"]
-license = "MPL-2.0"
-name = "bare-test"
-repository = "https://github.com/ZR233/sparreal-os/tree/main/crates/bare-test"
-version = "0.5.0"
 
 [package.edition]
 workspace = true

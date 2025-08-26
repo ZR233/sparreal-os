@@ -10,7 +10,6 @@ use core::{
 use buddy_system_allocator::Heap;
 use log::debug;
 use page_table_generic::PagingError;
-// use page_table_generic::{AccessSetting, CacheSetting};
 use spin::{Mutex, Once};
 
 use crate::{
@@ -23,6 +22,8 @@ use crate::{
     platform::{self, kstack_size},
     println,
 };
+
+pub use crate::platform::page_size;
 
 mod addr;
 mod cache;

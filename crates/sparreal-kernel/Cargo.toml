@@ -7,7 +7,7 @@ keywords = ["os"]
 license = "MPL-2.0"
 name = "sparreal-kernel"
 repository = "https://github.com/ZR233/sparreal-os"
-version = "0.10.1"
+version = "0.11.0"
 
 [dependencies]
 ansi_rgb = "0.2"
@@ -26,7 +26,6 @@ sparreal-macros = {workspace = true}
 spin = "0.10"
 trait-ffi = "0.2"
 page-table-generic = "0.6"
-# page-table-generic = {path = "/home/zhourui/opensource/somehal/page-table-generic"}
 
 [dependencies.anyhow]
 default-features = false

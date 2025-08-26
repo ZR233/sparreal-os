@@ -201,7 +201,7 @@ dependencies = [
 
 [[package]]
 name = "bare-test"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "bare-test-macros",
  "log",
@@ -2321,7 +2321,7 @@ dependencies = [
 
 [[package]]
 name = "sparreal-kernel"
-version = "0.10.1"
+version = "0.11.0"
 dependencies = [
  "ansi_rgb",
  "anyhow",
@@ -2360,7 +2360,7 @@ dependencies = [
 
 [[package]]
 name = "sparreal-rt"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "aarch64-cpu",
  "aarch64-cpu-ext",
