@@ -73,11 +73,12 @@ unsafe fn get_mut() -> &'static mut GlobalVal {
 /// # Safty
 /// 只能在其他CPU启动前调用
 pub(crate) unsafe fn setup(platform_info: PlatformInfoKind) -> Result<(), &'static str> {
-    let main_memory = platform::memory_main_available(&platform_info)?;
-
+    let main = crate::mem::find_main_memory().ok_or("can not find main memory")?;
+    let start = main.range.start.align_up(platform::page_size());
+    let range = start..main.range.end;
     let g = GlobalVal {
         platform_info,
-        main_memory,
+        main_memory: range,
         percpu: Default::default(),
     };
 

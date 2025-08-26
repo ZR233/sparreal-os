@@ -1,6 +1,6 @@
 use core::fmt::{Debug, Display};
 use core::marker::PhantomData;
-use core::ops::{Add, Range, Sub};
+use core::ops::{Add, Deref, Range, Sub};
 use core::ptr::NonNull;
 
 #[derive(Debug, Clone, Copy)]
@@ -149,6 +149,12 @@ macro_rules! def_addr {
 pub struct CRange<T: Debug + Sized + Clone + Copy> {
     pub start: T,
     pub end: T,
+}
+
+impl<T: Debug + Sized + Clone + Copy> CRange<T> {
+    pub fn to_range(&self) -> Range<T> {
+        self.start..self.end
+    }
 }
 
 impl<T: Debug + Sized + Clone + Copy> From<Range<T>> for CRange<T> {

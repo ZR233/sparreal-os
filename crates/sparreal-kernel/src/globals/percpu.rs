@@ -10,9 +10,8 @@ use log::debug;
 
 use crate::{
     irq,
-    mem::{PhysAddr, region::boot_regions},
-    platform::{CPUHardId, CPUId, cpu_hard_id, cpu_list, kstack_size},
-    platform_if::{MMUImpl, RegionKind},
+    mem::{PhysAddr, mmu::LINER_OFFSET, region::boot_regions},
+    platform::{self, CPUHardId, CPUId, cpu_hard_id, cpu_list, kstack_size, mmu::page_size},
     time::TimerData,
 };
 
@@ -67,16 +66,16 @@ fn add_cpu(cpu: CPUHardId, idx: usize) {
         let id = CPUId::from(idx);
 
         let stack_bottom = if idx == 0 {
-            let region = boot_regions()
+            let region = platform::boot_regions()
                 .into_iter()
-                .find(|o| matches!(o.kind, RegionKind::Stack))
+                .find(|o| o.name().contains("stack0"))
                 .expect("stack region not found!");
 
             region.range.start
         } else {
             let stack =
-                alloc::alloc::alloc(Layout::from_size_align(kstack_size(), 0x1000).unwrap());
-            PhysAddr::from(stack as usize - RegionKind::Other.va_offset())
+                alloc::alloc::alloc(Layout::from_size_align(kstack_size(), page_size()).unwrap());
+            PhysAddr::from(stack as usize - LINER_OFFSET)
         };
 
         (*PER_CPU.get()).insert(

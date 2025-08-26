@@ -2,9 +2,9 @@ use core::ptr::NonNull;
 
 use dma_api::Impl;
 
-use crate::platform_if::{CacheOp, PlatformImpl};
+use crate::platform::{self, CacheOp};
 
-use super::{PhysAddr, VirtAddr, mmu::RegionKind};
+use super::{PhysAddr, VirtAddr};
 
 struct DMAImpl;
 
@@ -18,11 +18,11 @@ impl Impl for DMAImpl {
     fn unmap(_addr: NonNull<u8>, _size: usize) {}
 
     fn flush(addr: NonNull<u8>, size: usize) {
-        PlatformImpl::dcache_range(CacheOp::Clean, addr.as_ptr() as _, size);
+        platform::dcache_range(CacheOp::Clean, addr.as_ptr() as _, size);
     }
 
     fn invalidate(addr: NonNull<u8>, size: usize) {
-        PlatformImpl::dcache_range(CacheOp::Invalidate, addr.as_ptr() as _, size);
+        platform::dcache_range(CacheOp::Invalidate, addr.as_ptr() as _, size);
     }
 }
 

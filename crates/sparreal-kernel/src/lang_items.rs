@@ -1,11 +1,6 @@
-use core::panic::PanicInfo;
-
-use log::error;
-
-use crate::platform::shutdown;
-
+#[cfg(target_os = "none")]
 #[panic_handler]
-fn panic(info: &PanicInfo) -> ! {
-    error!("kernel panic: {info:?}");
-    shutdown()
+fn panic(info: &core::panic::PanicInfo) -> ! {
+    log::error!("kernel panic: {info:?}");
+    crate::platform::shutdown()
 }

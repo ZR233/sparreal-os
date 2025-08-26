@@ -1,83 +1,19 @@
-use core::arch::{asm, naked_asm};
+use somehal::{BootInfo, mem::phys_to_virt};
+use sparreal_kernel::{globals::PlatformInfoKind, hal_al};
 
-use aarch64_cpu::registers::*;
-use pie_boot::BootInfo;
-use sparreal_kernel::{globals::PlatformInfoKind, io::print::*, platform::shutdown, println};
+use crate::mem;
 
 use super::debug;
-use crate::mem::{self, clean_bss};
 
-#[pie_boot::entry]
-fn rust_entry(args: &BootInfo) -> ! {
-    clean_bss();
-    set_trap();
-    unsafe {
-        asm!(
-            "mov x0, {args}",
-            "bl {switch_sp}",
-            args = in(reg) args,
-            switch_sp = sym switch_sp,
-        )
+#[somehal::entry]
+fn main(args: &BootInfo) -> ! {
+    if let Some(fdt) = args.fdt {
+        somehal::println!("FDT at {:p}", fdt.as_ptr());
     }
-}
+    debug::setup_by_fdt(args.fdt, phys_to_virt);
+    mem::setup_boot_args(args);
 
-fn sp_fixed_entry(args: &BootInfo) -> ! {
-    let text_va = args.kimage_start_vma as usize - args.kimage_start_lma as usize;
-    let fdt = args.fdt;
-
-    unsafe {
-        mem::mmu::set_text_va_offset(text_va);
-        debug::setup_by_fdt(fdt, |r| r as _);
-        stdout_use_debug();
-        let sp: usize;
-        asm!(
-            "mov {}, sp",
-            out(reg) sp,
-        );
-        println!("SP: {sp:#x}");
-
-        match CurrentEL.read(CurrentEL::EL) {
-            1 => println!("EL1"),
-            2 => println!("EL2"),
-            3 => println!("EL3"),
-            _ => unreachable!(),
-        }
-        mem::setup_boot_args(args);
-        println!("FDT: {fdt:?}",);
-
-        let platform_info: PlatformInfoKind = if let Some(fdt) = fdt {
-            PlatformInfoKind::new_fdt((fdt.as_ptr() as usize).into())
-        } else {
-            todo!()
-        };
-
-        if let Err(s) = sparreal_kernel::boot::start(text_va, platform_info) {
-            println!("Boot start error: {s}");
-        }
-    }
-    shutdown()
-}
-
-#[unsafe(naked)]
-unsafe extern "C" fn switch_sp(_args: usize) -> ! {
-    naked_asm!(
-        "
-        ldr     x8, =_stack_top
-        mov     sp, x8
-        bl      {}
-        ",
-        sym sp_fixed_entry,
-    )
-}
-
-fn set_trap() {
-    unsafe {
-        asm!(
-            "
-        LDR      {0}, =vector_table_el1
-        MSR      VBAR_EL1, {0}
-        ",
-            out(reg) _,
-        );
-    }
+    hal_al::run::run(PlatformInfoKind::new_fdt(
+        args.fdt.map_or(0, |fdt| fdt.as_ptr() as usize).into(),
+    ));
 }

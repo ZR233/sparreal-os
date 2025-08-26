@@ -9,7 +9,7 @@ use core::{
 use alloc::{boxed::Box, string::String};
 use log::trace;
 
-use crate::{platform, platform_if::PlatformImpl, task::schedule::*};
+use crate::{platform, task::schedule::*};
 
 use super::{TaskConfig, TaskError};
 
@@ -79,11 +79,11 @@ impl TaskControlBlock {
         task.sp = task.stack_top() as usize;
 
         unsafe {
-            task.sp -= PlatformImpl::cpu_context_size();
+            task.sp -= platform::cpu_context_size();
             let ctx_ptr = task.sp as *mut u8;
 
-            PlatformImpl::cpu_context_set_sp(ctx_ptr, task.sp);
-            PlatformImpl::cpu_context_set_pc(ctx_ptr, task_entry as _);
+            platform::cpu_context_set_sp(ctx_ptr, task.sp);
+            platform::cpu_context_set_pc(ctx_ptr, task_entry as _);
         }
         Ok(task)
     }
@@ -149,7 +149,7 @@ impl TaskControlBlock {
         }
 
         unsafe {
-            PlatformImpl::cpu_context_switch(self.addr(), next.addr());
+            platform::cpu_context_switch(self.addr(), next.addr());
         }
     }
 }
@@ -198,14 +198,10 @@ extern "C" fn task_entry() -> ! {
 }
 
 pub fn current() -> TaskControlBlock {
-    unsafe {
-        let ptr = PlatformImpl::get_current_tcb_addr();
-        TaskControlBlock::from(ptr)
-    }
+    let ptr = unsafe { platform::get_current_tcb_addr() };
+    TaskControlBlock::from(ptr)
 }
 
 pub fn set_current(tcb: &TaskControlBlock) {
-    unsafe {
-        PlatformImpl::set_current_tcb_addr(tcb.addr());
-    }
+    unsafe { platform::set_current_tcb_addr(tcb.addr()) };
 }
