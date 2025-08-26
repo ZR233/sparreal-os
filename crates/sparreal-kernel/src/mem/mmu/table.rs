@@ -1,16 +1,17 @@
 use page_table_generic::PagingError;
 use spin::Mutex;
 
+#[cfg(target_os = "none")]
+use crate::mem::ALLOCATOR;
 use crate::{
     hal_al::mmu::MapConfig,
     irq::NoIrqGuard,
     mem::{
-        ALLOCATOR, Phys, PhysAddr, VirtAddr,
+        Phys, PhysAddr, VirtAddr,
         mmu::{AccessSetting, CacheSetting, HeapGuard},
     },
     platform,
 };
-
 static KERNEL_TABLE: Mutex<Option<PageTable>> = Mutex::new(None);
 
 pub(crate) fn set_kernal_table(table: PageTable) {

@@ -18,10 +18,13 @@ use crate::{
     globals::{self, cpu_inited, global_val},
     hal_al::mmu::{MapConfig, PageTableRef},
     io::print::*,
-    mem::{ALLOCATOR, TMP_PAGE_ALLOC_ADDR},
+    mem::TMP_PAGE_ALLOC_ADDR,
     platform::{self, mmu::page_size},
     println,
 };
+
+#[cfg(target_os = "none")]
+use crate::mem::ALLOCATOR;
 
 pub mod table;
 
