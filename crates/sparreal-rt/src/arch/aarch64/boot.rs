@@ -12,6 +12,7 @@ fn main(args: &BootInfo) -> ! {
     }
     debug::setup_by_fdt(args.fdt, phys_to_virt);
     mem::setup_boot_args(args);
+
     hal_al::run::run(PlatformInfoKind::new_fdt(
         args.fdt.map_or(0, |fdt| fdt.as_ptr() as usize).into(),
     ));

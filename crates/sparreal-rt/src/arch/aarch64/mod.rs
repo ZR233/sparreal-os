@@ -29,6 +29,7 @@ mod gic;
 // mod paging;
 mod power;
 mod timer;
+mod trap;
 
 struct BAccess<'a>(&'a mut dyn Access);
 impl Access for BAccess<'_> {

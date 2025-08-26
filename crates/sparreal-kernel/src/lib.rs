@@ -25,7 +25,6 @@ mod lang_items;
 
 pub mod mem;
 pub mod platform;
-// pub mod platform_if;
 pub mod prelude;
 pub mod task;
 pub mod time;

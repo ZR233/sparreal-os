@@ -13,6 +13,7 @@ use crate::{
 };
 
 pub fn run(plat: PlatformInfoKind) {
+    platform::irq_all_disable();
     unsafe {
         if let Err(e) = globals::setup(plat) {
             println!("Global setup error: {}", e);

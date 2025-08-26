@@ -51,7 +51,7 @@ pub(crate) fn init_current_cpu() {
 
     for intc in rdrive::get_list::<Intc>() {
         let id = intc.descriptor().device_id();
-        let g = intc.lock().unwrap();
+        // let g = intc.lock().unwrap();
         platform::irq_init_current_cpu(id);
         // let Some(mut cpu_if) = g.cpu_local() else {
         //     continue;
@@ -75,7 +75,7 @@ pub(crate) fn init_current_cpu() {
                 handlers: UnsafeCell::new(BTreeMap::new()),
             },
         );
-        drop(g);
+        // drop(g);
     }
 }
 
