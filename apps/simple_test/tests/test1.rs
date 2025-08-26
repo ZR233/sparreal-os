@@ -19,7 +19,7 @@ mod tests {
 
         println!("test2: data len: {}", data.len());
         assert!(!data.is_empty(), "DMA vector should not be empty");
-        let ptr = data.as_ptr();
+        let ptr = data.as_ref().as_ptr();
         println!("test2: data ptr: {ptr:#p}");
 
         let phys = data.bus_addr();

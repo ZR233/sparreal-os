@@ -9,7 +9,7 @@ use core::{
 
 use buddy_system_allocator::Heap;
 use log::debug;
-use mmu::RegionKind;
+use page_table_generic::PagingError;
 // use page_table_generic::{AccessSetting, CacheSetting};
 use spin::{Mutex, Once};
 
@@ -38,7 +38,6 @@ static ALLOCATOR: KAllocator = KAllocator {
     inner: Mutex::new(Heap::empty()),
 };
 
-// static MAIN_RAM: Once<Range<Phys<u8>>> = Once::new();
 static mut TMP_PAGE_ALLOC_ADDR: usize = 0;
 
 pub struct KAllocator {
@@ -80,14 +79,6 @@ unsafe impl GlobalAlloc for KAllocator {
     }
 }
 
-const STACK_BOTTOM: usize = 0xffff_e100_0000_0000;
-pub fn stack_bottom() -> usize {
-    STACK_BOTTOM
-}
-pub fn stack_top() -> usize {
-    STACK_BOTTOM + kstack_size()
-}
-
 pub(crate) fn init() {
     let range = global_val().main_memory.clone();
     mmu::init_with_tmp_table();
@@ -108,6 +99,30 @@ pub(crate) fn init() {
     println!("heap initialized");
 
     mmu::init();
+
+    add_all_ram();
+}
+
+fn add_all_ram() {
+    let main = global_val().main_memory.clone();
+
+    for region in platform::boot_regions() {
+        if !matches!(region.kind, BootMemoryKind::Ram) {
+            continue;
+        }
+
+        if region.range.to_range().contains(&main.start) {
+            continue;
+        }
+
+        let start = VirtAddr::from(region.range.start.raw() + LINER_OFFSET);
+        let end = VirtAddr::from(region.range.end.raw() + LINER_OFFSET);
+        let len = end - start;
+
+        println!("Heap add memory [{}, {})", start, end);
+        #[cfg(target_os = "none")]
+        ALLOCATOR.add_to_heap(unsafe { &mut *slice_from_raw_parts_mut(start.into(), len) });
+    }
 }
 
 pub(crate) fn find_main_memory() -> Option<BootRegion> {
@@ -213,62 +228,29 @@ pub(crate) fn find_main_memory() -> Option<BootRegion> {
     }
 }
 
-// pub(crate) fn init_page_and_memory() {
-//     #[cfg(feature = "mmu")]
-//     mmu::init_table();
-
-//     let main = global_val().main_memory.clone();
-
-//     for memory in global_val().platform_info.memorys() {
-//         if memory.contains(&main.start) {
-//             continue;
-//         }
-//         // let start = VirtAddr::from(memory.start);
-//         // let end = VirtAddr::from(memory.end);
-//         // let len = memory.end - memory.start;
-
-//         // debug!("Heap add memory [{}, {})", start, end);
-//         // ALLOCATOR.add_to_heap(unsafe { &mut *slice_from_raw_parts_mut(start.as_mut_ptr(), len) });
-//     }
-// }
-
-// #[repr(C)]
-// #[derive(Debug, Clone, Copy)]
-// pub struct CMemRange {
-//     pub start: usize,
-//     pub end: usize,
-// }
-
-// impl CMemRange {
-//     pub fn as_slice(&self) -> &'static [u8] {
-//         unsafe { core::slice::from_raw_parts(self.start as *const u8, self.end - self.start) }
-//     }
-// }
-
-// #[repr(C)]
-// #[derive(Debug, Clone, Copy)]
-// pub struct KernelRegions {
-//     pub text: CMemRange,
-//     pub rodata: CMemRange,
-//     pub data: CMemRange,
-//     pub bss: CMemRange,
-// }
+pub fn map(config: &MapConfig) -> Result<(), PagingError> {
+    mmu::map(config)
+}
 
 pub fn iomap(paddr: PhysAddr, size: usize) -> NonNull<u8> {
-    mmu::table::with_kernel_table(move |table| {
-        let vaddr = VirtAddr::from(paddr.raw() + LINER_OFFSET);
-        table.map(&MapConfig {
-            name: "iomap",
-            va_start: vaddr,
-            pa_start: paddr,
-            size,
-            access: AccessSetting::ReadWrite,
-            cache: CacheSetting::Device,
-        });
+    let vaddr = VirtAddr::from(paddr.raw() + LINER_OFFSET);
+    match mmu::map(&MapConfig {
+        name: "iomap",
+        va_start: vaddr,
+        pa_start: paddr,
+        size,
+        access: AccessSetting::ReadWrite,
+        cache: CacheSetting::Device,
+    }) {
+        Ok(_) => {}
+        Err(e) => match e {
+            PagingError::AlreadyMapped => {}
+            _ => panic!("iomap failed: {:?}", e),
+        },
+    }
 
-        let ptr: *mut u8 = vaddr.into();
-        unsafe { NonNull::new_unchecked(ptr) }
-    })
+    let ptr: *mut u8 = vaddr.into();
+    unsafe { NonNull::new_unchecked(ptr) }
 
     // unimplemented!();
     // #[cfg(feature = "mmu")]

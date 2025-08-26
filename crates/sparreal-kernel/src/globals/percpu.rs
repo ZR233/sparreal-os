@@ -10,11 +10,7 @@ use log::debug;
 
 use crate::{
     irq,
-    mem::{
-        PhysAddr,
-        mmu::{LINER_OFFSET, RegionKind},
-        region::boot_regions,
-    },
+    mem::{PhysAddr, mmu::LINER_OFFSET, region::boot_regions},
     platform::{self, CPUHardId, CPUId, cpu_hard_id, cpu_list, kstack_size, mmu::page_size},
     time::TimerData,
 };

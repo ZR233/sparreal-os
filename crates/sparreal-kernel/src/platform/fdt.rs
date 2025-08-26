@@ -8,10 +8,9 @@ use fdt_parser::{Node, Pci};
 use log::warn;
 use rdrive::{Phandle, driver::Intc};
 
-use crate::mem::PhysAddr;
-use crate::{irq::IrqInfo, mem::mmu::RegionKind};
-
 use super::{CPUInfo, SerialPort};
+use crate::mem::PhysAddr;
+use crate::{irq::IrqInfo, mem::mmu::LINER_OFFSET};
 
 #[derive(Clone)]
 pub struct Fdt(PhysAddr);
@@ -48,7 +47,7 @@ impl Fdt {
     }
 
     pub fn get_addr(&self) -> NonNull<u8> {
-        NonNull::new((self.0 + RegionKind::Other.va_offset()).raw() as _).unwrap()
+        NonNull::new((self.0 + LINER_OFFSET).raw() as _).unwrap()
     }
 
     pub fn memorys(&self) -> ArrayVec<Range<PhysAddr>, 12> {

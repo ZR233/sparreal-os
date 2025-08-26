@@ -6,13 +6,11 @@ use core::{
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
 };
 
-use super::{
-    Phys, PhysAddr, PhysCRange, STACK_BOTTOM, Virt, once::OnceStatic, region::boot_regions,
-};
+use super::{Phys, PhysAddr, PhysCRange, Virt, once::OnceStatic, region::boot_regions};
 pub use arrayvec::ArrayVec;
 use buddy_system_allocator::Heap;
 use memory_addr::MemoryAddr;
-use page_table_generic::Access;
+use page_table_generic::{Access, PagingError};
 use spin::MutexGuard;
 
 pub use crate::hal_al::mmu::{AccessSetting, CacheSetting};
@@ -33,27 +31,7 @@ pub mod table;
 // pub const LINER_OFFSET: usize = 0xffff_f000_0000_0000;
 pub const LINER_OFFSET: usize = 0xffff_9000_0000_0000;
 static TEXT_OFFSET: OnceStatic<usize> = OnceStatic::new(0);
-static IS_MMU_ENABLED: OnceStatic<bool> = OnceStatic::new(false);
 
-// pub fn set_mmu_enabled() {
-//     unsafe { IS_MMU_ENABLED.set(true) };
-// }
-
-// pub fn is_mmu_enabled() -> bool {
-//     *IS_MMU_ENABLED.get_ref()
-// }
-
-/// 设置内核段偏移.
-///
-/// # Safety
-///
-/// 应在 cpu0 入口处执行
-pub unsafe fn set_text_va_offset(offset: usize) {
-    unsafe {
-        IS_MMU_ENABLED.set(false);
-        TEXT_OFFSET.set(offset);
-    }
-}
 pub fn get_text_va_offset() -> usize {
     *TEXT_OFFSET.get_ref()
 }
@@ -177,33 +155,13 @@ pub enum BootMemoryKind {
     Mmio,
 }
 
-#[repr(u8)]
-#[derive(Debug, Clone, Copy)]
-pub enum RegionKind {
-    KImage,
-    Stack,
-    Other,
-}
-
-impl RegionKind {
-    pub fn va_offset(&self) -> usize {
-        match self {
-            RegionKind::KImage => get_text_va_offset(),
-            RegionKind::Stack => STACK_BOTTOM - globals::cpu_global().stack.start.raw(),
-            RegionKind::Other => LINER_OFFSET,
-        }
-    }
-}
-
 impl<T> From<Virt<T>> for Phys<T> {
     fn from(value: Virt<T>) -> Self {
         let v = value.raw();
         if (0xffff800000001000..0xffff900000000000).contains(&v) {
-            Phys::new(v - RegionKind::KImage.va_offset())
-        } else if (0xffffe00000000000..0xfffff00000000000).contains(&v) {
-            Phys::new(v - RegionKind::Stack.va_offset())
+            Phys::new(v - get_text_va_offset())
         } else {
-            Phys::new(v - RegionKind::Other.va_offset())
+            Phys::new(v - LINER_OFFSET)
         }
     }
 }
@@ -298,4 +256,8 @@ impl Access for HeapGuard<'_> {
     fn phys_to_mut(&self, phys: page_table_generic::PhysAddr) -> *mut u8 {
         (phys.raw() + LINER_OFFSET) as *mut u8
     }
+}
+
+pub(crate) fn map(config: &MapConfig) -> Result<(), PagingError> {
+    table::with_kernel_table(|t| t.map(config))
 }

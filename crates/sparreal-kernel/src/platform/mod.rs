@@ -135,35 +135,6 @@ pub fn boot_regions() -> impl Iterator<Item = BootRegion> {
     })
 }
 
-pub fn regsions() -> Vec<BootRegion> {
-    let mut ret = boot_regions().collect::<Vec<_>>();
-
-    // let main_available = memory_main_available(&global_val().platform_info).unwrap();
-    // ret.push(BootRegion::new(
-    //     main_available.clone(),
-    //     c"main mem",
-    //     AccessSetting::Read | AccessSetting::Write | AccessSetting::Execute,
-    //     CacheSetting::Normal,
-    //     RegionKind::Other,
-    // ));
-
-    // for memory in phys_memorys() {
-    //     if memory.contains(&main_available.start) {
-    //         continue;
-    //     }
-
-    //     ret.push(BootRegion::new(
-    //         memory,
-    //         c"memory",
-    //         AccessSetting::Read | AccessSetting::Write | AccessSetting::Execute,
-    //         CacheSetting::Normal,
-    //         RegionKind::Other,
-    //     ));
-    // }
-
-    ret
-}
-
 pub fn phys_memorys() -> ArrayVec<Range<PhysAddr>, 12> {
     match &global_val().platform_info {
         PlatformInfoKind::DeviceTree(fdt) => fdt.memorys(),

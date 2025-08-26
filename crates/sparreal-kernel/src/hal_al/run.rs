@@ -7,7 +7,6 @@ use crate::{
     globals::{self, PlatformInfoKind, global_val},
     io, irq,
     logger::KLogger,
-    mem::{VirtAddr, stack_top},
     platform::{self, app_main, platform_name, shutdown},
     println, task,
 };
@@ -54,7 +53,6 @@ fn print_start_msg() {
 
     print_pair!("Version", env!("CARGO_PKG_VERSION"));
     print_pair!("Platfrom", "{}", platform_name());
-    print_pair!("Kernel Stack Top", "{}", VirtAddr::from(stack_top()));
     print_pair!("Start CPU", "{}", platform::cpu_hard_id());
 
     match &global_val().platform_info {
