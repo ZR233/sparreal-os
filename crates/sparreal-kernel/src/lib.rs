@@ -4,6 +4,8 @@
 #![feature(allocator_api)]
 
 extern crate alloc;
+#[macro_use]
+extern crate log;
 
 pub use rdrive::module_driver;
 

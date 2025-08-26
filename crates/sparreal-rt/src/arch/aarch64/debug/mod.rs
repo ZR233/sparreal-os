@@ -28,10 +28,6 @@ impl UartWapper {
     }
 }
 
-pub fn reg() -> usize {
-    REGBASE.load(Ordering::SeqCst)
-}
-
 pub fn put(byte: u8) {
     let _ = block!(UART.get().write(byte));
 }

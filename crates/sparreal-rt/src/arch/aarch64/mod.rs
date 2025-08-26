@@ -1,27 +1,26 @@
 use core::arch::asm;
 
 use aarch64_cpu::registers::*;
-use context::{__tcb_switch, Context};
-use log::trace;
-use somehal::{mem::MapRangeConfig, println};
+use aarch64_cpu_ext::cache;
+use context::Context;
+use log::{trace, warn};
+use somehal::mem::MapRangeConfig;
 use sparreal_kernel::{
     driver::IrqId,
     hal_al::{
         CacheOp, DeviceId, DriverRegisterSlice, Hal,
-        mmu::{Access, Mmu, PageTable, PagingError},
+        mmu::{Access, MapConfig, Mmu, PageTableRef, PagingError},
     },
     impl_trait,
     irq::IrqParam,
-    mem::{
-        Phys, PhysAddr, Virt,
-        mmu::{AccessSetting, BootMemoryKind, BootRegion, CacheSetting, RegionKind},
-        region,
-    },
+    mem::mmu::{AccessSetting, BootRegion, CacheSetting},
     task::TaskControlBlock,
 };
 
-use crate::{consts, mem::driver_registers};
-use aarch64_cpu_ext::cache;
+use crate::{
+    arch::context::__tcb_switch,
+    mem::{driver_registers, stack_cpu0},
+};
 
 mod boot;
 mod context;
@@ -30,16 +29,6 @@ mod gic;
 // mod paging;
 mod power;
 mod timer;
-// mod trap;
-
-// #[cfg(not(feature = "vm"))]
-// pub fn is_mmu_enabled() -> bool {
-//     SCTLR_EL1.matches_any(&[SCTLR_EL1::M::Enable])
-// }
-// #[cfg(feature = "vm")]
-// pub fn is_mmu_enabled() -> bool {
-//     SCTLR_EL2.matches_any(&[SCTLR_EL2::M::Enable])
-// }
 
 struct BAccess<'a>(&'a mut dyn Access);
 impl Access for BAccess<'_> {
@@ -80,39 +69,34 @@ impl Mmu for HalImpl {
         crate::mem::va_offset()
     }
 
-    fn new_table(alloc: &mut dyn Access) -> Result<PageTable, PagingError> {
+    fn new_table(alloc: &mut dyn Access) -> Result<PageTableRef, PagingError> {
         let mut baccess = BAccess(alloc);
         let table = somehal::mem::mmu::new_table(&mut baccess) ?;
-        Ok(PageTable { id: 0, addr: table.paddr().raw().into() })
+        Ok(PageTableRef { id: 0, addr: table.paddr().raw().into() })
     }
 
-    fn release_table(_table: PageTable) {
-        todo!()
+    fn release_table(_table: PageTableRef, alloc: &mut dyn Access) {
+        let mut baccess = BAccess(alloc);
+        warn!("release_table is not implemented"); // TODO
     }
 
-    fn current_table() -> PageTable {
+    fn get_kernel_table() -> PageTableRef {
         let tb = somehal::mem::mmu::get_kernal_table();
-        PageTable { id: tb.id, addr: tb.addr.into() }
+        PageTableRef { id: tb.id, addr: tb.addr.into() }
     }
 
-    fn switch_table(new_table: PageTable) {
+    fn set_kernel_table(new_table: PageTableRef) {
         somehal::mem::mmu::set_kernal_table(map_table(new_table));
     }
 
-    fn map_range(
-        table: PageTable,
+    fn table_map(
+        table: PageTableRef,
         alloc: &mut dyn Access,
-        name: &'static str,
-        va_start: Virt<u8>,
-        pa_start: Phys<u8>,
-        size: usize,
-        access: AccessSetting,
-        cache: CacheSetting,
+        config: &MapConfig,
     ) -> Result<(), PagingError> {
         let mut baccess = BAccess(alloc);
 
-
-        let access = match access {
+        let access = match config.access {
             AccessSetting::Read => somehal::mem::AccessKind::Read,
             AccessSetting::ReadWrite => somehal::mem::AccessKind::ReadWrite,
             AccessSetting::ReadExecute => somehal::mem::AccessKind::ReadExecute,
@@ -121,7 +105,7 @@ impl Mmu for HalImpl {
 
         let mut cpu_share = true;
 
-        let cache = match cache {
+        let cache = match config.cache {
             CacheSetting::Normal => somehal::mem::CacheKind::Normal,
             CacheSetting::Device => somehal::mem::CacheKind::Device,
             CacheSetting::NonCacheable => somehal::mem::CacheKind::NoCache,
@@ -132,10 +116,10 @@ impl Mmu for HalImpl {
         };
 
         let config = MapRangeConfig {
-            vaddr: va_start.raw() as _,
-            paddr: pa_start.raw(),
-            size,
-            name,
+            vaddr: config.va_start.raw() as _,
+            paddr: config.pa_start.raw(),
+            size: config.size,
+            name: config.name,
             access,
             cache,
             cpu_share,
@@ -146,7 +130,7 @@ impl Mmu for HalImpl {
 }
 }
 
-fn map_table(v: PageTable) -> somehal::mem::PageTable {
+fn map_table(v: PageTableRef) -> somehal::mem::PageTable {
     somehal::mem::PageTable {
         id: v.id,
         addr: v.addr.into(),
@@ -156,7 +140,7 @@ fn map_table(v: PageTable) -> somehal::mem::PageTable {
 impl_trait! {
 impl Hal for HalImpl {
     fn kstack_size() -> usize {
-        todo!()
+        stack_cpu0().len()
     }
 
     fn cpu_id() -> usize {
@@ -172,66 +156,73 @@ impl Hal for HalImpl {
     }
 
     unsafe fn get_current_tcb_addr() -> *mut u8 {
-        todo!()
+        SP_EL0.get() as usize as _
     }
 
     unsafe fn set_current_tcb_addr(addr: *mut u8) {
-        todo!()
+        SP_EL0.set(addr as usize as _);
     }
 
     unsafe fn cpu_context_sp(ctx_ptr: *const u8) -> usize {
-        todo!()
+        let ctx: &Context = unsafe { &*(ctx_ptr as *const Context) };
+        ctx.sp as _
     }
 
     unsafe fn cpu_context_set_sp(ctx_ptr: *const u8, sp: usize) {
-        todo!()
+        unsafe {
+            let ctx = &mut *(ctx_ptr as *mut Context);
+            ctx.sp = sp as _;
+        }
     }
 
     unsafe fn cpu_context_set_pc(ctx_ptr: *const u8, pc: usize) {
-        todo!()
+        unsafe {
+            let ctx = &mut *(ctx_ptr as *mut Context);
+            ctx.pc = pc as _;
+            ctx.lr = pc as _;
+        }
     }
 
-    #[doc = " # Safety"]
-    #[doc = ""]
-    #[doc = ""]
-    unsafe fn cpu_context_switch(prev_tcb: *mut u8, next_tcb: *mut u8) {
-        todo!()
+    unsafe fn cpu_context_switch(prev_ptr: *mut u8, next_ptr: *mut u8) {
+        let next = TaskControlBlock::from(next_ptr);
+        trace!("switch to: {:?}", unsafe { &*(next.sp as *const Context) });
+        unsafe { __tcb_switch(prev_ptr, next_ptr) };
     }
 
     fn wait_for_interrupt() {
-
+        aarch64_cpu::asm::wfi();
     }
 
     fn irq_init_current_cpu(id: DeviceId) {
-        todo!()
+        gic::init_current_cpu(id);
     }
 
     fn irq_ack() -> IrqId {
-        todo!()
+        gic::ack()
     }
 
     fn irq_eoi(irq: IrqId) {
-        todo!()
+        gic::eoi(irq);
     }
 
     fn irq_all_enable() {
-        todo!()
+        unsafe { asm!("msr daifclr, #2") };
     }
 
     fn irq_all_disable() {
-
+        unsafe { asm!("msr daifset, #2") };
     }
 
     fn irq_all_is_enabled() -> bool {
-        todo!()
+        !DAIF.is_set(DAIF::I)
     }
 
     fn irq_enable(config: IrqParam) {
-        todo!()
+        gic::irq_enable(config);
     }
 
     fn irq_disable(id: DeviceId, irq: IrqId) {
-        todo!()
+        gic::irq_disable(id, irq);
     }
 
     fn shutdown() -> ! {
@@ -243,7 +234,15 @@ impl Hal for HalImpl {
     }
 
     fn dcache_range(op: CacheOp, addr: usize, size: usize) {
-        todo!()
+        cache::dcache_range(
+            match op {
+                CacheOp::Invalidate => cache::CacheOp::Invalidate,
+                CacheOp::Clean => cache::CacheOp::Clean,
+                CacheOp::CleanAndInvalidate => cache::CacheOp::CleanAndInvalidate,
+            },
+            addr,
+            size,
+        );
     }
 
     fn driver_registers() -> DriverRegisterSlice {

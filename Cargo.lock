@@ -1245,6 +1245,8 @@ dependencies = [
 [[package]]
 name = "kasm-aarch64"
 version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "791dc7a2b079d81b8e3615521fccbd75c0c9f068b53f7d891a2e300222c7cada"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -1255,6 +1257,8 @@ dependencies = [
 [[package]]
 name = "kdef-pgtable"
 version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe55002bb265659921e59528cadf0d07362ebc0f37986d9b004bc45264036bf5"
 dependencies = [
  "bitflags 2.9.3",
  "prettyplease",
@@ -1514,16 +1518,6 @@ dependencies = [
 [[package]]
 name = "page-table-generic"
 version = "0.6.0"
-dependencies = [
- "bitflags 2.9.3",
- "log",
- "num-align",
- "thiserror 2.0.16",
-]
-
-[[package]]
-name = "page-table-generic"
-version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "79217ff706e8dd356df4b6d624bae950ae5c39a17c6959b81d73dedfc9653316"
 dependencies = [
@@ -1577,6 +1571,8 @@ checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
 [[package]]
 name = "pie-boot-if"
 version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c299ec1afe459d14459b06d621a771ebbbcf5834eb2734075b1837ca54f2e362"
 dependencies = [
  "heapless 0.8.0",
 ]
@@ -1584,6 +1580,8 @@ dependencies = [
 [[package]]
 name = "pie-boot-loader-aarch64"
 version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5ef37498b7b1081f2b5edcd13d1a84bd2c214bdabcf4cfaed4d5bd83636fc40f"
 dependencies = [
  "aarch64-cpu",
  "aarch64-cpu-ext",
@@ -1594,7 +1592,7 @@ dependencies = [
  "kdef-pgtable",
  "log",
  "num-align",
- "page-table-generic 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "page-table-generic",
  "pie-boot-if",
  "prettyplease",
  "quote",
@@ -1606,6 +1604,8 @@ dependencies = [
 [[package]]
 name = "pie-boot-macros"
 version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "513f5ca7603771d7524bfb7e6ba8dded83d2e8ac02d46f15815e0c1144bca566"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -2292,7 +2292,9 @@ dependencies = [
 
 [[package]]
 name = "somehal"
-version = "0.3.10"
+version = "0.3.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3d2cfae07fda13743ce231653afa228997865d5ef41a04633a46ecdf827893ca"
 dependencies = [
  "aarch64-cpu",
  "aarch64-cpu-ext",
@@ -2305,7 +2307,7 @@ dependencies = [
  "kdef-pgtable",
  "log",
  "num-align",
- "page-table-generic 0.6.0",
+ "page-table-generic",
  "pie-boot-if",
  "pie-boot-loader-aarch64",
  "pie-boot-macros",
@@ -2334,7 +2336,7 @@ dependencies = [
  "lock_api",
  "log",
  "memory_addr",
- "page-table-generic 0.6.0",
+ "page-table-generic",
  "pasts",
  "rdrive",
  "rgb",

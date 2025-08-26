@@ -23,8 +23,8 @@ log = "0.4"
 memory_addr = "0.4"
 numeric-enum-macro = "0.2"
 # page-table-generic = "0.5"
-# somehal = "0.3"
-somehal = {path = "/home/zhourui/opensource/somehal/somehal"}
+somehal = "0.3"
+# somehal = {path = "/home/zhourui/opensource/somehal/somehal"}
 rgb = "0.8"
 sparreal-kernel = {workspace = true, features = ["mmu"]}
 sparreal-macros = {workspace = true}

@@ -35,7 +35,7 @@ pub enum CacheSetting {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct PageTable {
+pub struct PageTableRef {
     pub id: usize,
     pub addr: Phys<u8>,
 }
@@ -47,18 +47,23 @@ pub trait Mmu {
     fn page_size() -> usize;
     fn kimage_va_offset() -> usize;
 
-    fn new_table(alloc: &mut dyn Access) -> Result<PageTable, PagingError>;
-    fn release_table(table: PageTable);
-    fn current_table() -> PageTable;
-    fn switch_table(new_table: PageTable);
-    fn map_range(
-        table: PageTable,
+    fn new_table(alloc: &mut dyn Access) -> Result<PageTableRef, PagingError>;
+    fn release_table(table: PageTableRef, alloc: &mut dyn Access);
+    fn get_kernel_table() -> PageTableRef;
+    fn set_kernel_table(new_table: PageTableRef);
+    fn table_map(
+        table: PageTableRef,
         alloc: &mut dyn Access,
-        name: &'static str,
-        va_start: Virt<u8>,
-        pa_start: Phys<u8>,
-        size: usize,
-        access: AccessSetting,
-        cache: CacheSetting,
+        config: &MapConfig,
     ) -> Result<(), PagingError>;
+}
+
+#[derive(Debug, Clone)]
+pub struct MapConfig {
+    pub name: &'static str,
+    pub va_start: Virt<u8>,
+    pub pa_start: Phys<u8>,
+    pub size: usize,
+    pub access: AccessSetting,
+    pub cache: CacheSetting,
 }

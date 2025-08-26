@@ -13,9 +13,7 @@ static BOOT_RSV_REGION: OnceStatic<BootRsvRegionVec> = OnceStatic::new(ArrayVec:
 pub(crate) unsafe fn init_boot_rsv_region() {
     unsafe {
         let mut rsv_regions = BootRsvRegionVec::new_const();
-        // for one in platform::boot_regions() {
-        //     rsv_regions.push(*one);
-        // }
+
         let mut index = 0;
         while let Some(region) = platform::boot_region_by_index(index) {
             rsv_regions.push(region);

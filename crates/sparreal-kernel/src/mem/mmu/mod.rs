@@ -18,14 +18,14 @@ use spin::MutexGuard;
 pub use crate::hal_al::mmu::{AccessSetting, CacheSetting};
 use crate::{
     globals::{self, cpu_inited, global_val},
-    hal_al::mmu::PageTable,
+    hal_al::mmu::{MapConfig, PageTableRef},
     io::print::*,
-    mem::{ALLOCATOR, MAIN_RAM, TMP_PAGE_ALLOC_ADDR},
+    mem::{ALLOCATOR, TMP_PAGE_ALLOC_ADDR},
     platform::{self, mmu::page_size},
     println,
 };
 
-// mod paging;
+pub mod table;
 
 // pub use paging::init_table;
 // pub use paging::iomap;
@@ -61,18 +61,19 @@ pub fn get_text_va_offset() -> usize {
 pub(crate) fn init_with_tmp_table() {
     println!("init tmp page table...");
     let table = new_boot_table().unwrap();
-    platform::mmu::switch_table(table);
+    platform::mmu::set_kernel_table(table);
 }
 
 pub(crate) fn init() {
     println!("init page table...");
 
-    let table = new_table().unwrap();
-    platform::mmu::switch_table(table);
+    let table_ref = new_table().unwrap();
+    let tb = unsafe { table::PageTable::raw_to_own(table_ref) };
+    table::set_kernal_table(tb);
 
     unsafe {
         let start = TMP_PAGE_ALLOC_ADDR;
-        let end = MAIN_RAM.wait().end.raw();
+        let end = global_val().main_memory.end.raw();
         let len = end - start;
         let start = (start + LINER_OFFSET) as *mut u8;
         let ram = core::slice::from_raw_parts_mut(start, len);
@@ -208,9 +209,9 @@ impl<T> From<Virt<T>> for Phys<T> {
 }
 const MB: usize = 1024 * 1024;
 
-fn new_boot_table() -> Result<PageTable, &'static str> {
+fn new_boot_table() -> Result<PageTableRef, &'static str> {
     let mut access = PageHeap(Heap::empty());
-    let main_mem = super::MAIN_RAM.wait();
+    let main_mem = global_val().main_memory.clone();
 
     let tmp_end = main_mem.end;
     let tmp_size = tmp_end - main_mem.start.align_up(MB);
@@ -223,13 +224,13 @@ fn new_boot_table() -> Result<PageTable, &'static str> {
     new_table_with_access(&mut access)
 }
 
-fn new_table() -> Result<PageTable, &'static str> {
+fn new_table() -> Result<PageTableRef, &'static str> {
     let mut g = ALLOCATOR.inner.lock();
     let mut access = HeapGuard(g);
     new_table_with_access(&mut access)
 }
 
-fn new_table_with_access(access: &mut dyn Access) -> Result<PageTable, &'static str> {
+fn new_table_with_access(access: &mut dyn Access) -> Result<PageTableRef, &'static str> {
     let table = platform::mmu::new_table(access).unwrap();
 
     println!("map boot regions...");
@@ -256,54 +257,21 @@ fn new_table_with_access(access: &mut dyn Access) -> Result<PageTable, &'static 
             region.cache
         );
 
-        if let Err(e) = platform::mmu::map_range(
+        if let Err(e) = platform::mmu::table_map(
             table,
             access,
-            region.name(),
-            va_start,
-            pa_start,
-            size,
-            region.access,
-            region.cache,
+            &MapConfig {
+                name: region.name(),
+                va_start,
+                pa_start,
+                size,
+                access: region.access,
+                cache: region.cache,
+            },
         ) {
             println!("map error: {e:?}");
         }
     }
-
-    // let mut table =
-    //     PageTableRef::create_empty(&mut access).map_err(|_| "page table allocator no memory")?;
-
-    // for memory in platform::phys_memorys() {
-    //     let region = BootRegion::new(
-    //         memory,
-    //         c"memory",
-    //         AccessSetting::Read | AccessSetting::Write | AccessSetting::Execute,
-    //         CacheSetting::Normal,
-    //         RegionKind::Other,
-    //     );
-    //     map_region(&mut table, 0, &region, &mut access);
-    // }
-
-    // for region in boot_regions() {
-    //     map_region(&mut table, region.va_offset(), region, &mut access);
-    // }
-
-    // let main_memory = BootRegion::new(
-    //     global_val().main_memory.clone(),
-    //     c"main memory",
-    //     AccessSetting::Read | AccessSetting::Write | AccessSetting::Execute,
-    //     CacheSetting::Normal,
-    //     RegionKind::Other,
-    // );
-
-    // map_region(
-    //     &mut table,
-    //     main_memory.va_offset(),
-    //     &main_memory,
-    //     &mut access,
-    // );
-
-    // let table_addr = table.paddr();
 
     println!("Table: {table:?}");
 
@@ -331,82 +299,3 @@ impl Access for HeapGuard<'_> {
         (phys.raw() + LINER_OFFSET) as *mut u8
     }
 }
-
-// fn map_region(
-//     table: &mut paging::PageTableRef<'_>,
-//     va_offset: usize,
-//     region: &BootRegion,
-//     access: &mut PageHeap,
-// ) {
-//     let addr = region.range.start;
-//     let size = region.range.end.raw() - region.range.start.raw();
-
-//     // let addr = align_down_1g(addr);
-//     // let size = align_up_1g(size);
-//     let vaddr = addr.raw() + va_offset;
-
-//     const NAME_LEN: usize = 12;
-
-//     let name_right = if region.name().len() < NAME_LEN {
-//         NAME_LEN - region.name().len()
-//     } else {
-//         0
-//     };
-
-//     println!(
-//         "map region [{:<12}] [{:#x}, {:#x}) -> [{:#x}, {:#x})",
-//         region.name(),
-//         vaddr,
-//         vaddr + size,
-//         addr.raw(),
-//         addr.raw() + size
-//     );
-
-//     unsafe {
-//         if let Err(e) = table.map_region(
-//             MapConfig::new(vaddr as _, addr.raw(), region.access, region.cache),
-//             size,
-//             true,
-//             access,
-//         ) {
-//             // early_handle_err(e);
-//         }
-//     }
-// }
-
-// fn early_handle_err(e: PagingError) {
-//     match e {
-//         PagingError::NoMemory => println!("no memory"),
-//         PagingError::NotAligned(e) => {
-//             println!("not aligned: {e}");
-//         }
-//         PagingError::NotMapped => println!("not mapped"),
-//         PagingError::AlreadyMapped => {}
-//     }
-//     panic!()
-// }
-
-// pub fn set_kernel_table(addr: usize) {
-//     MMUImpl::set_kernel_table(addr);
-// }
-
-// pub fn set_user_table(addr: usize) {
-//     MMUImpl::set_user_table(addr);
-// }
-// pub fn get_user_table() -> usize {
-//     MMUImpl::get_user_table()
-// }
-
-// #[allow(unused)]
-// pub(crate) fn flush_tlb(addr: *const u8) {
-//     unsafe { MMUImpl::flush_tlb(addr) };
-// }
-// pub fn flush_tlb_all() {
-//     MMUImpl::flush_tlb_all();
-// }
-// pub fn page_size() -> usize {
-//     MMUImpl::page_size()
-// }
-// pub fn table_level() -> usize {
-//     MMUImpl::table_level()
-// }

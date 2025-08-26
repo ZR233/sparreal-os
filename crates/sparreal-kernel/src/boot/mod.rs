@@ -53,38 +53,3 @@ pub mod debug;
 //     shutdown()
 // }
 
-macro_rules! print_pair {
-    ($name:expr, $($arg:tt)*) => {
-        $crate::print!("{:<30}: {}\r\n", $name, format_args!($($arg)*));
-    };
-}
-
-fn print_start_msg() {
-    println!("{}", LOGO.fg(orange()));
-
-    print_pair!("Version", env!("CARGO_PKG_VERSION"));
-    print_pair!("Platfrom", "{}", platform_name());
-    print_pair!("Kernel Stack Top", "{}", VirtAddr::from(stack_top()));
-    print_pair!("Start CPU", "{}", platform::cpu_hard_id());
-
-    match &global_val().platform_info {
-        globals::PlatformInfoKind::DeviceTree(fdt) => {
-            print_pair!("FDT", "{:p}", fdt.get_addr());
-        }
-    }
-
-    if let Some(debug) = global_val().platform_info.debugcon()
-        && let Some(c) = debug.compatibles().next()
-    {
-        print_pair!("Debug Serial", "{}", c);
-    }
-}
-
-static LOGO: &str = r#"
-     _____                                         __
-    / ___/ ____   ____ _ _____ _____ ___   ____ _ / /
-    \__ \ / __ \ / __ `// ___// ___// _ \ / __ `// / 
-   ___/ // /_/ // /_/ // /   / /   /  __// /_/ // /  
-  /____// .___/ \__,_//_/   /_/    \___/ \__,_//_/   
-       /_/                                           
-"#;

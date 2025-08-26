@@ -15,8 +15,9 @@ use spin::{Mutex, Once};
 
 use crate::{
     globals::global_val,
+    hal_al::mmu::MapConfig,
     mem::{
-        mmu::{BootMemoryKind, BootRegion, LINER_OFFSET},
+        mmu::{AccessSetting, BootMemoryKind, BootRegion, CacheSetting, LINER_OFFSET},
         once::OnceStatic,
     },
     platform::{self, kstack_size},
@@ -37,7 +38,7 @@ static ALLOCATOR: KAllocator = KAllocator {
     inner: Mutex::new(Heap::empty()),
 };
 
-static MAIN_RAM: Once<Range<Phys<u8>>> = Once::new();
+// static MAIN_RAM: Once<Range<Phys<u8>>> = Once::new();
 static mut TMP_PAGE_ALLOC_ADDR: usize = 0;
 
 pub struct KAllocator {
@@ -88,14 +89,10 @@ pub fn stack_top() -> usize {
 }
 
 pub(crate) fn init() {
-    let main = find_main_memory().expect("no main memory found");
-    let start = main.range.start.align_up(platform::page_size());
-    let range = start..main.range.end;
-    MAIN_RAM.call_once(|| range.clone());
-
+    let range = global_val().main_memory.clone();
     mmu::init_with_tmp_table();
 
-    let mut start = VirtAddr::from(start.raw() + LINER_OFFSET);
+    let mut start = VirtAddr::from(range.start.raw() + LINER_OFFSET);
     let mut end = VirtAddr::from(range.end.raw() + LINER_OFFSET);
 
     unsafe {
@@ -113,7 +110,7 @@ pub(crate) fn init() {
     mmu::init();
 }
 
-fn find_main_memory() -> Option<BootRegion> {
+pub(crate) fn find_main_memory() -> Option<BootRegion> {
     let mut ram_regions = heapless::Vec::<_, 32>::new();
     let mut non_ram_regions = heapless::Vec::<_, 32>::new();
 
@@ -257,8 +254,23 @@ fn find_main_memory() -> Option<BootRegion> {
 //     pub bss: CMemRange,
 // }
 
-pub fn iomap(paddr: PhysAddr, _size: usize) -> NonNull<u8> {
-    unimplemented!();
+pub fn iomap(paddr: PhysAddr, size: usize) -> NonNull<u8> {
+    mmu::table::with_kernel_table(move |table| {
+        let vaddr = VirtAddr::from(paddr.raw() + LINER_OFFSET);
+        table.map(&MapConfig {
+            name: "iomap",
+            va_start: vaddr,
+            pa_start: paddr,
+            size,
+            access: AccessSetting::ReadWrite,
+            cache: CacheSetting::Device,
+        });
+
+        let ptr: *mut u8 = vaddr.into();
+        unsafe { NonNull::new_unchecked(ptr) }
+    })
+
+    // unimplemented!();
     // #[cfg(feature = "mmu")]
     // {
     //     mmu::iomap(paddr, _size)
