@@ -70,8 +70,8 @@ pub fn setup_boot_args(args: &BootInfo) {
     }
 
     if let Some(debug) = &args.debug_console {
-        let start = (debug.base as usize).align_down(page_size());
-        let end = (debug.base as usize + 0x1000).align_up(page_size());
+        let start = debug.base_phys.align_down(page_size());
+        let end = (debug.base_phys + 0x1000).align_up(page_size());
 
         regions
             .push(BootRegion::new(

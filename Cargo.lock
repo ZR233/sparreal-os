@@ -1581,18 +1581,18 @@ checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
 
 [[package]]
 name = "pie-boot-if"
-version = "0.7.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c299ec1afe459d14459b06d621a771ebbbcf5834eb2734075b1837ca54f2e362"
+checksum = "3d979b0d1208dd8a57c5adb7d3c4e07bf15cbea3840123e864f6bfcb655c5e05"
 dependencies = [
  "heapless 0.8.0",
 ]
 
 [[package]]
 name = "pie-boot-loader-aarch64"
-version = "0.2.6"
+version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62d5fe5c25c9eec3e30ec44fbaa74ca083a5f6f152d202588ff87609cf48bc2b"
+checksum = "de8836eb8759cd65e70c73dc0f519345d8a734284e8e4cfc5889a6e445af9f09"
 dependencies = [
  "aarch64-cpu",
  "aarch64-cpu-ext",
@@ -2280,9 +2280,9 @@ dependencies = [
 
 [[package]]
 name = "somehal"
-version = "0.3.15"
+version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c761facff5f76229f70721de7f824a3b86d6b3f699efe50a1147c18f71a27a51"
+checksum = "5a9b180e1abae1127bd99ecee566c3906d8c0f854cb1c442b945afe911e6eb71"
 dependencies = [
  "aarch64-cpu",
  "aarch64-cpu-ext",
@@ -2351,7 +2351,7 @@ dependencies = [
 
 [[package]]
 name = "sparreal-rt"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "aarch64-cpu",
  "aarch64-cpu-ext",
