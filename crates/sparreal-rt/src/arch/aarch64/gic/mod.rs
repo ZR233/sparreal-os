@@ -1,6 +1,7 @@
 use arm_gic_driver::IntId;
+use rdif_intc::Trigger;
 use sparreal_kernel::{
-    driver::{DeviceId, IrqId, driver::intc::Trigger},
+    driver::{DeviceId, IrqId},
     irq::IrqParam,
 };
 

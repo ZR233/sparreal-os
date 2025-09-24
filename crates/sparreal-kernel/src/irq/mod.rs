@@ -2,8 +2,9 @@ use core::cell::UnsafeCell;
 
 use alloc::{boxed::Box, collections::btree_map::BTreeMap, vec::Vec};
 use log::{debug, warn};
+use rdif_intc::Intc;
 pub use rdrive::Phandle;
-use rdrive::{DeviceId, driver::intc::*};
+use rdrive::{DeviceId, IrqConfig, IrqId};
 use spin::Mutex;
 
 use crate::{

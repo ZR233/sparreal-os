@@ -5,12 +5,12 @@ use core::{
 
 use super::queue;
 use alloc::boxed::Box;
-use rdrive::driver::systick::{self, *};
+use rdrive::IrqConfig;
 
 const NANO_PER_SEC: u128 = 1_000_000_000;
 
 pub struct Timer {
-    timer: Box<dyn systick::local::Interface>,
+    timer: Box<dyn rdif_systick::local::Interface>,
     q: queue::Queue,
 }
 
@@ -18,7 +18,7 @@ unsafe impl Sync for Timer {}
 unsafe impl Send for Timer {}
 
 impl Timer {
-    pub fn new(timer: Box<dyn systick::local::Interface>) -> Self {
+    pub fn new(timer: Box<dyn rdif_systick::local::Interface>) -> Self {
         Self {
             timer,
             q: queue::Queue::new(),

@@ -1,5 +1,6 @@
 use alloc::format;
 use arm_gic_driver::v3::*;
+use rdif_intc::*;
 use sparreal_kernel::{
     driver::{
         self, DeviceId, IrqId, PlatformDevice, module_driver, probe::OnProbeError,
@@ -43,7 +44,7 @@ fn probe_gic(info: FdtInfo<'_>, dev: PlatformDevice) -> Result<(), OnProbeError>
 
     let gic = unsafe { Gic::new(gicd.into(), gicr.into()) };
 
-    dev.register_intc(gic);
+    dev.register(Intc::new(gic));
 
     unsafe { VERSION = 3 };
 
@@ -51,10 +52,7 @@ fn probe_gic(info: FdtInfo<'_>, dev: PlatformDevice) -> Result<(), OnProbeError>
 }
 
 fn with_gic<R>(id: DeviceId, f: impl FnOnce(&mut Gic) -> R) -> R {
-    let mut gic = driver::get::<driver::driver::Intc>(id)
-        .unwrap()
-        .lock()
-        .unwrap();
+    let mut gic = driver::get::<Intc>(id).unwrap().lock().unwrap();
     f(gic.typed_mut().unwrap())
 }
 

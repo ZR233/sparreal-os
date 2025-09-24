@@ -6,7 +6,7 @@ use arrayvec::ArrayVec;
 use core::{ops::Range, ptr::NonNull};
 use fdt_parser::{Node, Pci};
 use log::warn;
-use rdrive::{Phandle, driver::Intc};
+use rdrive::Phandle;
 
 use super::{CPUInfo, SerialPort};
 use crate::mem::PhysAddr;
@@ -107,7 +107,7 @@ impl GetIrqConfig for Node<'_> {
 
 fn parse_irq_config(parent: Phandle, interrupts: &[Vec<u32>]) -> Option<IrqInfo> {
     let irq_parent = rdrive::fdt_phandle_to_device_id(parent)?;
-    let parent = rdrive::get::<Intc>(irq_parent).expect("Intc not found");
+    let parent = rdrive::get::<rdif_intc::Intc>(irq_parent).expect("Intc not found");
     let parse_fun = { parent.lock().unwrap().parse_dtb_fn()? };
 
     let mut cfgs = Vec::new();

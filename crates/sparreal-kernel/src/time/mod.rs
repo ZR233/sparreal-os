@@ -9,7 +9,7 @@ use crate::{
     irq::{IrqHandleResult, IrqParam},
 };
 
-use rdrive::driver::{Systick, intc::IrqId};
+use rdrive::IrqId;
 use spin::{Mutex, MutexGuard};
 pub use timer::Timer;
 
@@ -87,7 +87,7 @@ pub(crate) fn init_current_cpu() -> Option<()> {
     let intc;
     let cfg;
     {
-        let systick = rdrive::get_one::<Systick>()?;
+        let systick = rdrive::get_one::<rdif_systick::Systick>().unwrap();
         intc = systick.descriptor().irq_parent?;
         let cpu_if = { systick.lock().unwrap().cpu_local() };
         cfg = cpu_if.irq();

@@ -4,7 +4,6 @@ use core::hint::spin_loop;
 use core::iter;
 use core::{ffi::CStr, fmt::Display, ops::Range};
 use log::error;
-use rdrive::driver;
 
 use fdt::Fdt;
 use rdrive::register::DriverRegister;
@@ -142,7 +141,7 @@ pub fn phys_memorys() -> ArrayVec<Range<PhysAddr>, 12> {
 }
 
 pub fn shutdown() -> ! {
-    if let Some(power) = rdrive::get_one::<driver::Power>() {
+    if let Some(power) = rdrive::get_one::<rdif_power::Power>() {
         power.lock().unwrap().shutdown();
         loop {
             spin_loop();
@@ -255,13 +254,13 @@ impl Display for CPUHardId {
     }
 }
 
-impl From<rdrive::driver::intc::CpuId> for CPUHardId {
-    fn from(value: rdrive::driver::intc::CpuId) -> Self {
+impl From<rdif_intc::CpuId> for CPUHardId {
+    fn from(value: rdif_intc::CpuId) -> Self {
         Self(value.into())
     }
 }
 
-impl From<CPUHardId> for rdrive::driver::intc::CpuId {
+impl From<CPUHardId> for rdif_intc::CpuId {
     fn from(value: CPUHardId) -> Self {
         Self::from(value.0)
     }

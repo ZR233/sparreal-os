@@ -108,6 +108,8 @@ pub(crate) fn init() {
     mmu::init();
 
     add_all_ram();
+
+    cache::init();
 }
 
 fn add_all_ram() {

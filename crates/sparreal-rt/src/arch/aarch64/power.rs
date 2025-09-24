@@ -2,10 +2,10 @@ use core::error::Error;
 
 use alloc::{boxed::Box, format};
 use log::{debug, error};
+use rdif_power::*;
 use smccc::{Hvc, Smc, psci};
 use sparreal_kernel::driver::{
-    DriverGeneric, PlatformDevice, driver::power::*, module_driver, probe::OnProbeError,
-    register::*,
+    DriverGeneric, PlatformDevice, module_driver, probe::OnProbeError, register::*,
 };
 
 module_driver!(
@@ -71,7 +71,7 @@ fn probe(info: FdtInfo<'_>, plat_dev: PlatformDevice) -> Result<(), OnProbeError
         .str();
     let method = Method::try_from(method)?;
 
-    plat_dev.register_power(Psci { method });
+    plat_dev.register(Power::new(Psci { method }));
 
     debug!("PCSI [{method:?}]");
     Ok(())

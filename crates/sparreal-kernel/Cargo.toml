@@ -7,7 +7,7 @@ keywords = ["os"]
 license = "MPL-2.0"
 name = "sparreal-kernel"
 repository = "https://github.com/ZR233/sparreal-os"
-version = "0.11.1"
+version = "0.12.0"
 
 [dependencies]
 ansi_rgb = "0.2"
@@ -20,12 +20,17 @@ heapless = "0.9"
 lock_api = "0.4"
 log = "0.4"
 memory_addr = "0.4"
-rdrive = "0.16"
+page-table-generic = "0.6"
 rgb = "0.8.47"
 sparreal-macros = {workspace = true}
 spin = "0.10"
 trait-ffi = "0.2"
-page-table-generic = "0.6"
+
+rdrive = "0.18"
+
+rdif-intc = "0.12.1"
+rdif-systick = "0.5.1"
+rdif-power = "0.6.1"
 
 [dependencies.anyhow]
 default-features = false
