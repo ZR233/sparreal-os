@@ -33,6 +33,7 @@ impl Fdt {
         let fdt = self.get();
 
         fdt.find_nodes("/cpus/cpu")
+            .filter(|n| n.name().starts_with("cpu@"))
             .map(|cpu| {
                 let reg = cpu.reg().unwrap().next().unwrap();
                 CPUInfo {
